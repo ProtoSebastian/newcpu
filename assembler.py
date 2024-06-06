@@ -3,57 +3,126 @@ from common import *
 
 ###- CONSTANTS -###
 # Number of registers
-NUMBER_OF_REGISTERS = 16
+NUMBER_OF_REGISTERS = 0 # Does not apply to this kind of architecture
 # Opcode position; how much to shift opcode (in bits, left)
-OPCODE_POSITION = 12
+OPCODE_POSITION = 16
 # Max length an instruction can have (in bits)
-INSTRUCTION_MAX_LENGTH = 16
+INSTRUCTION_MAX_LENGTH = 24
 
 ###- ALL POSSIBLE OPERANDS -###
 # Operands
 # Format : '<1 char label>':[<position>, <bit length>, <1: signed, 0: unsigned>, "<full name>"]
 OPERANDS= {
-           'F' : [8,  4, 0, "first register"], # First register
-           'A' : [4,  4, 0, "register A"],     # Register A
-           'B' : [0,  4, 0, "register B"],     # Register B
-           'I' : [0,  8, 1, "immediate"],      # Immediate
-           'C' : [10, 2, 0, "condition"],      # Condition
-           'O' : [0,  4, 1, "offset"],         # Offset
-           'M' : [0, 10, 0, "memory address"], # Memory address
+           'A':[0, 16, 0, 'ADDRESS'],
+           'P':[8, 8,  0, 'PAGE'],
+           'O':[0, 8,  0, 'OFFSET'],
+           'D':[8, 8,  0, 'DATA'],
           }
 
 ###- NATIVE INSTRUCTIONS -###
 # Format: '<label>':[<opcode>, '<operand flags in order of use in opcode>', <opcode specific mask>]
 # [A=0] means operand A is optional and defaults to 0
+# ISA by @SLicudis (GitHub)
 OPCODES = {
-           'nop':[0x0, '', 0x0000],        # nop                     : Does nothing
-           'hlt':[0x1, '', 0x0000],        # hlt                     : Halts machine
-           'add':[0x2, 'FAB', 0x0000],     # add dest A B            : pseudo-code: dest <- A + B
-           'sub':[0x3, 'FAB', 0x0000],     # sub dest A B            : pseudo-code: dest <- A - B
-           'nor':[0x4, 'FAB', 0x0000],     # nor dest A B            : pseudo-code: dest <- !(A | B)
-           'and':[0x5, 'FAB', 0x0000],     # and dest A B            : pseudo-code: dest <- A & B
-           'xor':[0x6, 'FAB', 0x0000],     # xor dest A B            : pseudo-code: dest <- A ^ B
-           'rsh':[0x7, 'FA', 0x0000],      # rsh dest A              : pseudo-code: dest <- A >> 1 (logical shift)
-           'ldi':[0x8, 'FI', 0x0000],      # ldi dest immediate      : pseudo-code: dest <- immediate
-           'adi':[0x9, 'FI', 0x0000],      # adi dest immediate      : pseudo-code: dest <- dest + immediate
-           'jmp':[0xA, 'M', 0x0000],       # jmp address             : pseudo-code: PC <- address
-           'brh':[0xB, 'CM', 0x0000],      # brh condition address   : pseudo-code: PC <- condition ? address : PC + 1
-           'cal':[0xC, 'M', 0x0000],       # cal address             : pseudo-code: PC <- address (and push PC + 1 to stack)
-           'ret':[0xD, '', 0x0000],        # ret                     : pseudo-code: PC <- top of stack (and pop stack)
-           'lod':[0xE, 'FA[O=0]', 0x0000], # lod dest A [offset=0]   : pseudo-code: dest <- mem[A + offset]
-           'str':[0xF, 'FA[O=0]', 0x0000]  # str source A [offset=0] : pseudo-code: mem[A + offset] <- source
+           'hlt'  :[0x00, '',  0],
+           'jmp'  :[0x01, 'A', 0],
+           'jz'   :[0x02, 'A', 0],
+           'jnz'  :[0x03, 'A', 0],
+           'jc'   :[0x04, 'A', 0],
+           'jnc'  :[0x05, 'A', 0],
+           'jx'   :[0x06, 'P', 0],
+           'jy'   :[0x07, 'O', 0],
+           'jxy'  :[0x08, '',  0],
+           'ldaa' :[0x09, 'A', 0],
+           'ldax' :[0x0A, 'P', 0],
+           'ldaxy':[0x0B, '',  0],
+           'lda'  :[0x0C, 'D', 0],
+           'ldxa' :[0x0D, 'A', 0],
+           'ldx'  :[0x0E, 'D', 0],
+           'ldya' :[0x0F, 'A', 0],
+           'ldy'  :[0x10, 'D', 0],
+           'atx'  :[0x11, '',  0],
+           'aty'  :[0x12, '',  0],
+           'xta'  :[0x13, '',  0],
+           'xty'  :[0x14, '',  0],
+           'yta'  :[0x15, '',  0],
+           'ytx'  :[0x16, '',  0],
+           'sta'  :[0x17, 'A', 0],
+           'stax' :[0x18, 'P', 0],
+           'staxy':[0x19, '',  0],
+           'stx'  :[0x1A, 'A', 0],
+           'sty'  :[0x1B, 'A', 0],
+           'inx'  :[0x1C, '',  0],
+           'iny'  :[0x1D, '',  0],
+           'addi' :[0x1E, 'D', 0],
+           'add'  :[0x1F, 'A', 0],
+           'addx' :[0x20, '',  0],
+           'addy' :[0x21, '',  0],
+           'adc'  :[0x22, '',  0],
+           'subi' :[0x23, 'D', 0],
+           'sub'  :[0x24, 'A', 0],
+           'subx' :[0x25, '',  0],
+           'suby' :[0x26, '',  0],
+           'subc' :[0x27, '',  0],
+           'multi':[0x28, 'D', 0],
+           'mult' :[0x29, 'A', 0],
+           'multx':[0x2A, '',  0],
+           'multy':[0x2B, '',  0],
+           'neg'  :[0x2C, '',  0],
+           'andi' :[0x2D, 'D', 0],
+           'and'  :[0x2E, 'A', 0],
+           'andx' :[0x2F, '',  0],
+           'andy' :[0x30, '',  0],
+           'ori'  :[0x31, 'D', 0],
+           'or'   :[0x32, 'A', 0],
+           'orx'  :[0x33, '',  0],
+           'ory'  :[0x34, '',  0],
+           'xori' :[0x35, 'D', 0],
+           'xor'  :[0x36, 'A', 0],
+           'xorx' :[0x37, '',  0],
+           'xory' :[0x38, '',  0],
+           'shli' :[0x39, 'D', 0],
+           'shl'  :[0x3A, 'A', 0],
+           'shlx' :[0x3B, '',  0],
+           'shly' :[0x3C, '',  0],
+           'shri' :[0x3D, 'D', 0],
+           'shr'  :[0x3E, 'A', 0],
+           'shrx' :[0x3F, '',  0],
+           'shry' :[0x40, '',  0],
+           'roli' :[0x41, 'D', 0],
+           'rol'  :[0x42, 'A', 0],
+           'rolx' :[0x43, '',  0],
+           'roly' :[0x44, '',  0],
+           'rori' :[0x45, 'D', 0],
+           'ror'  :[0x46, 'A', 0],
+           'rorx' :[0x47, '',  0],
+           'rory' :[0x48, '',  0],
+           'pha'  :[0x49, '',  0],
+           'phx'  :[0x4A, '',  0],
+           'phy'  :[0x4B, '',  0],
+           'ppa'  :[0x4C, '',  0],
+           'ppx'  :[0x4D, '',  0],
+           'ppy'  :[0x4E, '',  0],
+           'clc'  :[0x4F, '',  0],
+           'sec'  :[0x50, '',  0],
+           'cli'  :[0x51, '',  0],
+           'sei'  :[0x52, '',  0],
+           'clz'  :[0x53, '',  0],
+           'sez'  :[0x54, '',  0],
+           'call' :[0x55, 'A', 0],
+           'ret'  :[0x56, '',  0],
+           'wait' :[0x57, '',  0],
+           'brk'  :[0x58, '',  0],
+           'rti'  :[0x59, '',  0],
+           'res'  :[0x5A, '',  0],
+           'nop'  :[0x69, '',  0],
           } # Opcodes
 
 ###- PSEUDO-INSTRUCTIONS -###
 # Pseudo-instructions
 # Format : 'label':['<resolution as formatted string>']
 PSEUDOINS = {
-             'cmp':['sub r0 {0} {1}'],  # cmp : sub r0 A B
-             'mov':['add {0} {1} r0'],  # mov : add dest A r0
-             'lsh':['add {0} {1} {1}'], # lsh : add dest A A
-             'inc':['adi {0} 1'],       # inc : adi dest 1
-             'dec':['adi {0} -1'],      # dec : adi dest -1
-             'not':['nor {0} {1} r0'],  # not : nor dest A r0
+             # To be used
             }
 
 ###- MACROS (MULTI-LINE PSEUDO-INSTRUCTIONS) -###
@@ -61,78 +130,7 @@ PSEUDOINS = {
 # Format : 'label':['<resolution as formatted string>']
 # - formatted string must be separated by newlines ('\n')
 MACROS = {
-          'nnd':['and {0} {1} {2}\n'+   # nnd dest A B : and dest A B
-                 'not {0} {0}'       ], #                not dest dest   # do the bitwise "not AND" operation on registers A, B and store the result in dest
-
-          'xnr':['xor {0} {1} {2}\n'+   # xnr dest A B : xor dest A B
-                 'not {0} {0}'       ], #                not dest dest   # do the bitwise "not XOR" operation on registers A, B and store the result in dest
-
-          'orr':['nor {0} {1} {2}\n'+   # orr dest A B : nor dest A B
-                 'not {0} {0}'       ], #                not dest dest   # do the bitwise "OR" operation on registers A, B and store the result in dest
-
-          'nim':['not {0} {2}\n'+       # nim dest A B : not dest B
-                 'and {0} {0} {1}'   ], #                and dest dest A # do the bitwise "not IMPLIES" operation on registers A, B and store the result in dest
-                                        # !(A -> B) = A & (!B)
-
-          'imp':["nim {0} {1} {2}\n"+   # imp dest A B : nim dest A B
-                 "not {0} {0}"       ], #                not dest dest   # do the bitwise "IMPLIES" operation on registers A, B and store the result in dest
-                                        # A -> B = !(!(A -> B))
-#--------------------------------------------------------------------------------#
-          'use_devices':      ['ldi {0} 248'],      # use_display rbp : ldi rbp 240         # store pixel display's base pointer in rbp
-
-          'set_x':            ['str {1} {0} -8'],   # set_x rbp rX : str rX rbp 0           # store value at rX into pixel display's X port
-
-          'set_xi':           ['ldi {1} {2}\n'+     # set_xi rbp rBuf imm : ldi rBuf imm
-                               'set_x {0} {1}' ],   #                       set_x rbp rBuf  # store immediate value into pixel display's X port
-
-          'set_y':            ['str {1} {0} -7'],   # set_y rbp rY : str rY rbp 1           # store value at rY into pixel display's Y port
-
-          'set_yi':           ['ldi {1} {2}\n'+     # set_yi rbp rBuf imm : ldi rBuf imm
-                               'set_y {0} {1}' ],   #                       set_y rbp rBuf  # store immediate value into pixel display's Y port
-
-          'set_pixel':        ['str r0 {0} -6'],    # set_pixel rbp : str r0 rbp 2          # trigger pixel display's Draw Pixel port to draw current pixel
-
-          'clr_pixel':        ['str r0 {0} -5'],    # clr_pixel rbp : str r0 rbp 3          # trigger pixel display's Clear Pixel port to clear current pixel
-
-          'get_pixel':        ['lod {1} {0} -4'],   # get_pixel rbp rDest : lod rDest rbp 4 # load pixel at current pixel position
-
-          'cpy_disp_buffer':  ['str r0 {0} -3'],    # cpy_disp_buffer rbp : str r0 rbp 5    # copy pixel display buffer to screen
-
-          'clr_disp_buffer':  ['str r0 {0} -2'],    # clr_disp_buffer rbp : str r0 rbp 6    # clear pixel display buffer
-
-          'clr_display':['clr_disp_buffer {0}\n'+   # clr_display rbp : clr_disp_buffer rbp
-                         'cpy_disp_buffer {0}'   ], #                   cpy_disp_buffer rbp # clear both display and display buffer
-#--------------------------------------------------------------------------------#
-          'add_char':         ['str {1} {0} -1'],   # add_char rbp rChar  : str rChar rbp 0 # append character at rChar to character display buffer
-
-          'add_chari':        ['ldi {1} {2}\n'+     # add_chari rbp rBuf imm : ldi rBuf imm
-                               'add_char {0} {1}'], #                          add_char rbp rBuf
-                                                                                            # append immediate character imm to character display buffer
-
-          'cpy_char_buffer':  ['str r0 {0} 0'],     # cpy_char_buffer rbp : str r0 rbp 1    # copy character display buffer to char display
-
-          'clr_char_buffer':  ['str r0 {0} 1'],     # clr_char_buffer rbp : str r0 rbp 2    # clear character display buffer
-
-          'clr_char_display': ['clr_char_buffer {0}\n'+   # clr_char_display rbp : clr_char_buffer rbp
-                               'cpy_char_buffer {0}'   ], #                        cpy_char_buffer rbp
-                                                                                            # clear both char display and buffer
-#--------------------------------------------------------------------------------#
-          'set_num':          ['str {1} {0} 2'],    # set_num rbp rNum : str rNum rbp       # set number display's buffer to number in rNum
-
-          'set_numi':         ['ldi {1} {2}\n'+     # set_numi rbp rBuf imm : ldi rBuf imm
-                               'set_num {0} {1}'],  #                         set_num rbp rBuf
-                                                                                            # set number display's buffer to immediate imm
-
-          'clr_num_display':  ['str r0 {0} 3'],     # clr_num_display rbp : str r0 rbp 1    # clear number display
-
-          'num_mode_signed':  ['str r0 {0} 4'],     # num_mode_signed rbp : str r0 rbp 2    # set number display to signed mode
-
-          'num_mode_unsigned':['str r0 {0} 5'],     # num_mode_unsigned rbp : str r0 rbp 3  # set number display to unsigned mode
-#--------------------------------------------------------------------------------#
-          'get_rng':          ['lod {1} {0} 6'],    # get_rng rbp rDest : lod rDest rbp     # put a random number in rDest
-
-          'get_cont_state':   ['lod {1} {0} 7'],    # get_cont_state rbp rDest : lod rDest rbp
-                                                                                            # put the controller's current state in rDest
+          # To be used
          }
 
 ###- UTILITY -###
@@ -149,6 +147,8 @@ def is_macro(word):
 def resolve(word, line, symbols):
     if word[0] in '-0123456789':
         return int(word)
+    if word[0] == '$':
+        return int(word[1:], 16)
     if symbols.get(word) is None:
         fatal_error("assembler", f'{assembly_filename}:{line}: Could not resolve \'{word}\'.')
     return symbols[word]
@@ -282,12 +282,15 @@ def assemble(assembly_filename, output_filename):
             symbols[words[1]] = int(words[2])
             offset += 1
         elif is_label(words[0]):
-            if(is_label(words[0])==1):
-                symbols[words[0]] = index - offset # This assumes we put code after the label, which many don't
-            elif(is_label(words[0])==2):
+            result = is_label(words[0])
+            if(result==1):
+                symbols[words[0]] = index - offset
+            elif(result==2):
                 symbols['.'+words[0][:-1]] = index - offset
+            elif(result==3):
+                symbols[words[0][:-1]] = index - offset
             else:
-                fatal_error('assembler', f"pre-assembly stage: syntax error: {assembly_filename}:{line_number}: Both \':\' and \'.\' indicator used for label.")
+                fatal_error('assembler', f"pre-assembly stage: UNKNOWN ERROR: {assembly_filename}:{line_number}: I don\'t know what went wrong. You should open an issue about this!")
             # Compensates for code that is not put in the same line as the label definition
             if(len(words)<2):
                 offset+=1
