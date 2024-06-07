@@ -24,7 +24,7 @@ OPERANDS= {
 # [A=0] means operand A is optional and defaults to 0
 # ISA by @SLicudis (GitHub)
 OPCODES = {
-           'hlt'  :[0x00, '',  0],
+           'brk'  :[0x00, '',  0],
            'jmp'  :[0x01, 'A', 0],
            'jz'   :[0x02, 'A', 0],
            'jnz'  :[0x03, 'A', 0],
@@ -112,9 +112,8 @@ OPCODES = {
            'call' :[0x55, 'A', 0],
            'ret'  :[0x56, '',  0],
            'wait' :[0x57, '',  0],
-           'brk'  :[0x58, '',  0],
-           'rti'  :[0x59, '',  0],
-           'res'  :[0x5A, '',  0],
+           'rti'  :[0x58, '',  0],
+           'res'  :[0x59, '',  0],
            'nop'  :[0x69, '',  0],
           } # Opcodes
 
