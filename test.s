@@ -7,7 +7,7 @@ ORG $0000
 START:
   LDI  %SPY, $02
   LDI  %CSY, $40
-  LDI  %R4,  $B0
+  LDI  %SR,  $80
   WAIT
 INT:
   LDA  KEYBOARD
@@ -20,8 +20,8 @@ PRINT_CHAR:
 NOT_NULL_CHAR:
   POP  %RA
   STA  TERMINAL
-  CMP  %RA, %R0
+  CMP  %RA,  %R0
   JNZ  .NOT_NULL_CHAR
   RET
 ORG $0200
-DB "Hello World!", $10, $00
+DB "Hello World!", 10, $00
