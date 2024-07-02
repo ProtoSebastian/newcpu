@@ -251,7 +251,7 @@ Examples:
 
 `DB "ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789"`
 
-`DB "The quick brown fox jumped over the " "lazy dog." 0x10 0`
+`DB "The quick brown fox jumps over the " "lazy dog." 0x10 0`
 
 `db "H" "e" "l" 'l' "o" ' ' ":" "3"`
 
