@@ -57,45 +57,43 @@ OPCODES = {
 # Format : 'label':['<resolution as formatted string>']
 # - instructions must be separated by newlines ('\n')
 PSEUDO_INSTRUCTIONS = {
-           'mov'  :['alu 0, {0}, %R0, {1}'],  # MOV DEST, A -> ALU ADD, DEST, %R0, A ; DEST = A
-           'movi'  :['alui 0, {0}, %R0, {1}'],# MOVI DEST, A -> ALUI ADD, DEST, %R0, IMM ; DEST = IMM
-           'inc'  :['alui 0, {0}, {0}, 1'],   # INC A -> ALUI ADD, A, A, 1 ; A + 1
-           'dec'  :['alui 2, {0}, {0}, 1'],   # DEC A -> ALUI SUB, A, A, 1 ; A - 1
-           'cmp'  :['alu 2, %R0, {0}, {1}'],  # CMP A, B -> ALU SUB, %R0, A, B ; A - B (set flags)
-           'cmpi' :['alui 2, %R0, {0}, {1}'],  # CMPI A, B -> ALUI SUB, %R0, A, IMM ; A - IMM (set flags)
-           'shl'  :['alui 4, {0}, {1}, {2}'],# SHL DEST, A, B -> ALUI MULT, DEST, A, 2**B ; DEST = A << B
-           'add'  :['alu 0, {0}, {1}, {2}'],  # ADD DEST, A, B -> ALU ADD, DEST, A, B ; DEST = A + B
-           'addi' :['alui 0, {0}, {1}, {2}'],  # ADDI DEST, A, IMM -> ALUI ADD, DEST, A, IMM ; DEST = A + IMM
-           'addc' :['alu 1, {0}, {1}, {2}'], # ADDC DEST, A, B -> ALU ADDC, DEST, A, B ; DEST = A + B (w/carry)
-           'addci':['alui 1, {0}, {1}, {2}'], # ADDCI DEST, A, IMM -> ALUI ADDC, DEST, A, IMM ; DEST = A + IMM (w/carry)
-           'sub'  :['alu 2, {0}, {1}, {2}'],  # SUB DEST, A, B -> ALU SUB, DEST, A, B ; DEST = A - B
-           'subi' :['alui 2, {0}, {1}, {2}'],  # SUBI DEST, A, IMM -> ALUI SUB, DEST, A, IMM ; DEST = A - IMM
-           'subb' :['alu 3, {0}, {1}, {2}'], # SUBB DEST, A, B -> ALU SUBB, DEST, A, B ; DEST = A - B (w/borrow)
-           'subbi':['alui 3, {0}, {1}, {2}'], # SUBBI DEST, A, IMM -> ALUI SUBB, DEST, A, IMM ; DEST = A - IMM (w/borrow)
-           'mult' :['alu 4, {0}, {1}, {2}'], # MULT DEST, A, B -> ALU MULT, DEST, A, B ; DEST = A * B
-           'multi':['alui 4, {0}, {1}, {2}'], # MULTI DEST, A, IMM -> ALUI MULT, DEST, A, IMM ; DEST = A * IMM
-           'and'  :['alu 5, {0}, {1}, {2}'],  # AND DEST, A, B -> ALU AND, DEST, A, B ; DEST = A & B
-           'andi' :['alui 5, {0}, {1}, {2}'],  # ANDI DEST, A, IMM -> ALUI AND, DEST, A, IMM ; DEST = A & IMM
-           'or'   :['alu 6, {0}, {1}, {2}'],   # OR DEST, A, B -> ALU OR, DEST, A, B ; DEST = A | B
+           'mov'  :['alu 0, {0}, %R0, {1}'],    # MOV DEST, A -> ALU ADD, DEST, %R0, A ; DEST = A
+           'movi'  :['alui 0, {0}, %R0, {1}'],  # MOVI DEST, A -> ALUI ADD, DEST, %R0, IMM ; DEST = IMM
+           'inc'  :['alui 0, {0}, {0}, 1'],     # INC A -> ALUI ADD, A, A, 1 ; A + 1
+           'dec'  :['alui 2, {0}, {0}, 1'],     # DEC A -> ALUI SUB, A, A, 1 ; A - 1
+           'cmp'  :['alu 2, %R0, {0}, {1}'],    # CMP A, B -> ALU SUB, %R0, A, B ; A - B (set flags)
+           'cmpi' :['alui 2, %R0, {0}, {1}'],   # CMPI A, B -> ALUI SUB, %R0, A, IMM ; A - IMM (set flags)
+           'shl'  :['alui 4, {0}, {1}, {2}'],   # SHL DEST, A, B -> ALUI MULT, DEST, A, 2**B ; DEST = A << B
+           'add'  :['alu 0, {0}, {1}, {2}'],    # ADD DEST, A, B -> ALU ADD, DEST, A, B ; DEST = A + B
+           'addi' :['alui 0, {0}, {1}, {2}'],   # ADDI DEST, A, IMM -> ALUI ADD, DEST, A, IMM ; DEST = A + IMM
+           'addc' :['alu 1, {0}, {1}, {2}'],    # ADDC DEST, A, B -> ALU ADDC, DEST, A, B ; DEST = A + B (w/carry)
+           'addci':['alui 1, {0}, {1}, {2}'],   # ADDCI DEST, A, IMM -> ALUI ADDC, DEST, A, IMM ; DEST = A + IMM (w/carry)
+           'sub'  :['alu 2, {0}, {1}, {2}'],    # SUB DEST, A, B -> ALU SUB, DEST, A, B ; DEST = A - B
+           'subi' :['alui 2, {0}, {1}, {2}'],   # SUBI DEST, A, IMM -> ALUI SUB, DEST, A, IMM ; DEST = A - IMM
+           'subb' :['alu 3, {0}, {1}, {2}'],    # SUBB DEST, A, B -> ALU SUBB, DEST, A, B ; DEST = A - B (w/borrow)
+           'subbi':['alui 3, {0}, {1}, {2}'],   # SUBBI DEST, A, IMM -> ALUI SUBB, DEST, A, IMM ; DEST = A - IMM (w/borrow)
+           'mult' :['alu 4, {0}, {1}, {2}'],    # MULT DEST, A, B -> ALU MULT, DEST, A, B ; DEST = A * B
+           'multi':['alui 4, {0}, {1}, {2}'],   # MULTI DEST, A, IMM -> ALUI MULT, DEST, A, IMM ; DEST = A * IMM
+           'and'  :['alu 5, {0}, {1}, {2}'],    # AND DEST, A, B -> ALU AND, DEST, A, B ; DEST = A & B
+           'andi' :['alui 5, {0}, {1}, {2}'],   # ANDI DEST, A, IMM -> ALUI AND, DEST, A, IMM ; DEST = A & IMM
+           'or'   :['alu 6, {0}, {1}, {2}'],    # OR DEST, A, B -> ALU OR, DEST, A, B ; DEST = A | B
            'ori'  :['alui 6, {0}, {1}, {2}'],   # ORI DEST, A, IMM -> ALUI OR, DEST, A, IMM ; DEST = A | IMM
-           'xor'  :['alu 7, {0}, {1}, {2}'],  # XOR DEST, A, B -> ALU XOR, DEST, A, B ; DEST = A ^ B
-           'xori' :['alui 7, {0}, {1}, {2}'],  # XORI DEST, A, IMM -> ALUI XOR, DEST, A, IMM ; DEST = A ^ IMM
-           'nand' :['alu 8, {0}, {1}, {2}'], # NAND DEST, A, B -> ALU NAND, DEST, A, B ; DEST = !(A & B)
-           'nandi':['alui 8, {0}, {1}, {2}'], # NANDI DEST, A, IMM -> ALUI NAND, DEST, A, IMM ; DEST = !(A & IMM)
-           'nor'  :['alu 9, {0}, {1}, {2}'],  # NOR DEST, A, B -> ALU NOR, DEST, A, B ; DEST = !(A | B)
-           'nori' :['alui 9, {0}, {1}, {2}'],  # NORI DEST, A, IMM -> ALUI NOR, DEST, A, IMM ; DEST = !(A | IMM)
-           'xnor' :['alu 10, {0}, {1}, {2}'], # XNOR DEST, A, B -> ALU XNOR, DEST, A, B ; DEST = !(A ^ B)
-           'xnori':['alui 10, {0}, {1}, {2}'], # XNORI DEST, A, IMM -> ALUI XNOR, DEST, A, IMM ; DEST = !(A ^ IMM)
-           'shr'  :['alu 11, {0}, {1}, {2}'],  # SHR DEST, A, B -> ALU SHR, DEST, A, B ; DEST = A >> B
+           'xor'  :['alu 7, {0}, {1}, {2}'],    # XOR DEST, A, B -> ALU XOR, DEST, A, B ; DEST = A ^ B
+           'xori' :['alui 7, {0}, {1}, {2}'],   # XORI DEST, A, IMM -> ALUI XOR, DEST, A, IMM ; DEST = A ^ IMM
+           'nand' :['alu 8, {0}, {1}, {2}'],    # NAND DEST, A, B -> ALU NAND, DEST, A, B ; DEST = !(A & B)
+           'nandi':['alui 8, {0}, {1}, {2}'],   # NANDI DEST, A, IMM -> ALUI NAND, DEST, A, IMM ; DEST = !(A & IMM)
+           'nor'  :['alu 9, {0}, {1}, {2}'],    # NOR DEST, A, B -> ALU NOR, DEST, A, B ; DEST = !(A | B)
+           'nori' :['alui 9, {0}, {1}, {2}'],   # NORI DEST, A, IMM -> ALUI NOR, DEST, A, IMM ; DEST = !(A | IMM)
+           'xnor' :['alu 10, {0}, {1}, {2}'],   # XNOR DEST, A, B -> ALU XNOR, DEST, A, B ; DEST = !(A ^ B)
+           'xnori':['alui 10, {0}, {1}, {2}'],  # XNORI DEST, A, IMM -> ALUI XNOR, DEST, A, IMM ; DEST = !(A ^ IMM)
+           'shr'  :['alu 11, {0}, {1}, {2}'],   # SHR DEST, A, B -> ALU SHR, DEST, A, B ; DEST = A >> B
            'shri' :['alui 11, {0}, {1}, {2}'],  # SHRI DEST, A, IMM -> ALUI SHR, DEST, A, IMM ; DEST = A >> IMM
-           'asr'  :['alu 12, {0}, {1}, {2}'],  # ASR DEST, A, B -> ALU ASR, DEST, A, B ; DEST = A ~>> B
-           'asri' :['alui 12, {0}, {1}, {2}'],  # ASRI DEST, A, IMM -> ALUI ASR, DEST, A, IMM ; DEST = A ~>> IMM
-           'rol'  :['alu 13, {0}, {1}, {2}'],  # ROL DEST, A, B -> ALU ROL, DEST, A, B ; DEST = A ROL B
-           'roli' :['alui 13, {0}, {1}, {2}'],  # ROLI DEST, A, IMM -> ALUI ROL, DEST, A, IMM ; DEST = A ROL IMM
-           'ror'  :['alu 14, {0}, {1}, {2}'],  # ROR DEST, A, B -> ALU ROR, DEST, A, B ; DEST = A ROR B
-           'rori' :['alui 14, {0}, {1}, {2}'],  # RORI DEST, A, IMM -> ALUI ROR, DEST, A, IMM ; DEST = A ROR IMM
-           'neg'  :['alu 15, {0}, {1}, 0'],    # NEG DEST, A -> ALU NEG, DEST, A, 0 ; DEST = -A
-           'not'  :['alu 9, {0}, {1}, %R0'],  # NOT DEST, A -> ALU NOR, DEST, A, %R0 ; DEST = !A
+           'asr'  :['alu 12, {0}, {1}, %R0'],   # ASR DEST, A -> ALU ASR, DEST, A, r0 ; DEST = A ~>> 1
+           'rol'  :['alu 13, {0}, {1}, %R0'],   # ROL DEST, A -> ALU ROL, DEST, A, r0 ; DEST = A ROL 1
+           'ror'  :['alu 14, {0}, {1}, %R0'],   # ROR DEST, A -> ALU ROR, DEST, A, r0 ; DEST = A ROR 1
+           'shrc' :['alu 15, {0}, {1}, %R0'],   # SHRC DEST, A -> ALU SHRC, DEST, A, r0 ; DEST = (A >> 1) | (Carry << 15)
+           'neg'  :['multi {0}, {1}, -1'],      # NEG DEST, A -> MULTI DEST, A, -1 ; DEST = -A, (A * -1)
+           'not'  :['alu 9, {0}, {1}, %R0'],    # NOT DEST, A -> ALU NOR, DEST, A, %R0 ; DEST = !A
            'str'  :['strl 0, {0}, {1}, {2}'],   # STR REG, A, B -> STRL 0, REG, A, B ; REG = MEMORY[A, B]
            'strx' :['strl 1, {0}, {1}, {2}'],   # STRX REG, A, IMM -> STRL 1, REG, A, IMM ; REG = MEMORY[A, IMM]
            'lod'  :['lodl 0, {0}, {1}, {2}'],   # LOD 0, DEST, A, B -> LODL 0, DEST, A, B ; MEMORY[A, B] = REG
