@@ -17,7 +17,7 @@ INSTRUCTION_MAX_LENGTH = 3
 # Format : '<1 char label>':[<position in word>, <word position>, <bit length>, <1: signed, 0: unsigned>, "<full name>"]
 OPERANDS= {
            'a':[0, 2, 16, 0, "Address"],
-           'I':[0, 2, 8,  0, "Immediate"],
+           'I':[0, 2, 8,  1, "Immediate"],
            'A':[0, 1, 4,  0, "A"],
            'P':[0, 1, 4,  0, "Page (A)"],
            'B':[0, 2, 4,  0, "B"],
@@ -809,14 +809,19 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
 
             # Check operands and assemble them
             for idx, opcode in enumerate(current_opinfo[1][0]):
-                if(len(words)<=idx):
+                if(len(words) <= idx):
                     words.append(opcode[1])
                 opinfo = OPERANDS[opcode[0]]
-                mask   = (1<<opinfo[2]) - 1
-                if opinfo[3] and (words[idx]<0):
-                    words[idx]=(~words[idx])+1
-                if words[idx] != (words[idx] & mask):
-                    fatal_error('assembler', f"assembly stage: {assembly_filename}:{line_number}: Invalid {opinfo[4]} for instruction \'{current_instruction}\'")
+                mask   = (1 << opinfo[2]) - 1
+                sign   = 1
+                if(words[idx] < 0):
+                    sign = -1
+                if((not opinfo[3]) and (sign < 0)):
+                    fatal_error('assembler', f"assembly stage: {assembly_filename}:{line_number}: {opinfo[4]} for instruction \'{current_instruction}\' is signed, but the operand doesn\'t support that.")
+                unsignedver = words[idx] * sign
+                if(unsignedver != (unsignedver & mask)):
+                    fatal_error('assembler', f"assembly stage: {assembly_filename}:{line_number}: {opinfo[4]} for instruction \'{current_instruction}\' doesn\'t fit, it\'s too big. (bit width: {opinfo[2]})")
+
                 machine_code |= (words[idx] & mask) << (opinfo[0] + ((current_opinfo[3] - opinfo[1] - 1) * WORD_LENGTH))
                 # Just to be safe, it's ANDed with the mask
 
