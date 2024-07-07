@@ -567,7 +567,7 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
                     fatal_error('assembler', f"pre-assembly stage: {assembly_filename}:{line_number}: Incorrect number of operands for pseudo-instruction \'{words[0]}\'")
                 # !!! HACKY SUBSTITUTION FOR A REAL METHOD, REMOVE LATER !!!
                 if(words[0] == 'shl'):
-                    gen_lines = popinfo[1].format(*(words[1:2] + [2 ** words[3]])).split('\n')
+                    gen_lines = popinfo[1].format(*[words[1], words[2], 2 ** words[3]]).split('\n')
                 else:
                     gen_lines = popinfo[1].format(*words[1:]).split('\n')
                 parsed = []

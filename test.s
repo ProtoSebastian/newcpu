@@ -25,3 +25,5 @@ NOT_NULL_CHAR:
   RET
 ORG $0200
 DB "Hello World!", 10, $00
+; test SHL
+  SHL %R1, %R2, 1
