@@ -1,6 +1,8 @@
 from common import *
 
 ###- CONSTANTS -###
+# Comment symbols
+COMMENT_SYMBOLS = ['#', ';', '//']
 # Operand separators
 OPERAND_SEPARATORS = ', \t'
 # Space characters for inbetween operands and instruction
@@ -14,113 +16,125 @@ INSTRUCTION_MAX_LENGTH = 3
 
 ###- ALL POSSIBLE OPERANDS -###
 # Operands
-# Format : '<1 char label>':[<position in word>, <word position>, <bit length>, <1: signed, 0: unsigned>, "<full name>"]
+# Format : '<1 char label>':[<position in word>, <word position>, <bit length>, <1: signed, 0: unsigned>, <type flags>, "<full name>"]
+# Type flags :
+## Bit 0 is allow immediates
+## Bit 1 is allow registers
+## Bit 2 is allow mem locations
+## Bit 3 is reserved for the merge flag
+## Bit 4 is reserved for indicating that a mem location parameter is at the beginning of the list
+## Bit 5 is reserved for indicating that a mem location parameter is at the end of the list
+## Bit 6 is reserved for the "ANY" flag, which overrides type-checking if the type is "immediate" (or no type information)
+## For the first word in every line, bits 0-2 all have to be 0, and bits 3-5 represent the type of the line (Label, Definition, ORG, DB, Instruction)
+## The rest are up to you
 OPERANDS= {
-           'a':[0, 2, 16, 0, "Address"],
-           'I':[0, 2, 8,  1, "Immediate"],
-           'A':[0, 1, 4,  0, "A"],
-           'P':[0, 1, 4,  0, "Page (A)"],
-           'B':[0, 2, 4,  0, "B"],
-           'O':[0, 2, 4,  0, "Offset (B)"],
-           'D':[4, 1, 4,  0, "Dest"],
-           'S':[4, 1, 4,  0, "Selected register"],
-           'L':[0, 0, 4,  0, "ALU instruction"],
-           'F':[0, 0, 4,  0, "Flag type"],
-           'T':[3, 0, 1,  0, "Type value"],
+           'a':[0, 2, 16, 0, 0b0110101, "Full address immediate"],
+           'I':[0, 2, 8,  1, 0b0000001, "Immediate"],
+           'P':[0, 1, 4,  0, 0b0010110, "Page register"],
+           'O':[0, 2, 4,  0, 0b0100110, "Offset register"],
+           'o':[0, 2, 8,  0, 0b0100101, "Offset immediate"],
+           'D':[4, 1, 4,  0, 0b0000010, "Destination register"],
+           'S':[4, 1, 4,  0, 0b0000010, "Source register"],
+           'L':[0, 0, 4,  0, 0b0000001, "ALU instruction"],
+           'A':[0, 1, 4,  0, 0b0000010, "Register A"],
+           'B':[0, 2, 4,  0, 0b0000010, "Register B"],
+           'F':[0, 0, 4,  0, 0b0000001, "Flag type"],
           }
 
 ###- NATIVE INSTRUCTIONS -###
 # Format: '<mnemonic>':[<opcode>, '<operand flags in order of use in opcode>', <opcode specific mask>, <size in user-defined words>]
 # [A=0] means operand A is optional and defaults to 0
+# - parameter type requirements are derived from operand flag type flags
 OPCODES = {
-           'nop' :[0x0, '',     0x000000, 3],
-           'brk' :[0x1, '',     0x000000, 3],
-           'alu' :[0x2, 'LDAB', 0x000000, 3],
-           'alui':[0x3, 'LDAI', 0x000000, 3],
-           'ldi' :[0x4, 'DI',   0x000000, 3],
-           'lodl':[0x5, 'TDPI', 0x000000, 3],
-           'strl':[0x6, 'TSPI', 0x000000, 3],
-           'psh' :[0x7, 'S',    0x000000, 3],
-           'pop' :[0x8, 'D',    0x000000, 3],
-           'jmp' :[0x9, 'a',    0x000000, 3],
-           'jf'  :[0xA, 'Fa',   0x000000, 3],
-           'rjm' :[0xB, 'PO',   0x000000, 3],
-           'call':[0xC, 'a',    0x000000, 3],
-           'ret' :[0xD, '',     0x000000, 3],
-           'wait':[0xE, '',     0x000000, 3],
-           'sta' :[0xF, 'a',    0x000000, 3],
-           'lda' :[0xF, 'a',    0x080000, 3],
+           'nop' :[[0x0, '',     0x000000, 3],],
+           'brk' :[[0x1, '',     0x000000, 3],],
+           'alu' :[[0x2, 'LDAB', 0x000000, 3],],
+           'alui':[[0x3, 'LDAI', 0x000000, 3],],
+           'ldi' :[[0x4, 'DI',   0x000000, 3],],
+           'lod' :[[0x5, 'DPo',  0x000000, 3],
+                   [0x5, 'DPO',  0x080000, 3],],
+           'str' :[[0x6, 'SPo',  0x000000, 3],
+                   [0x6, 'SPO',  0x080000, 3],],
+           'psh' :[[0x7, 'S',    0x000000, 3],],
+           'pop' :[[0x8, 'D',    0x000000, 3],],
+           'jmp' :[[0x9, 'a',    0x000000, 3],],
+           'jf'  :[[0xA, 'Fa',   0x000000, 3],],
+           'rjm' :[[0xB, 'PO',   0x000000, 3],],
+           'call':[[0xC, 'a',    0x000000, 3],],
+           'ret' :[[0xD, '',     0x000000, 3],],
+           'wait':[[0xE, '',     0x000000, 3],],
+           'sta' :[[0xF, 'a',    0x000000, 3],],
+           'lda' :[[0xF, 'a',    0x080000, 3],],
           } # Opcodes
 
 ###- PSEUDO-INSTRUCTIONS -###
 # Pseudo-instructions
-# Format : 'label':['<resolution as formatted string>']
+# Format : 'label':['<resolution as formatted string>', '<operand flags in order>']
 # - instructions must be separated by newlines ('\n')
+# - parameter type requirements are derived from operand flag type flags
 PSEUDO_INSTRUCTIONS = {
-           'mov'  :['alu 0, {0}, %R0, {1}'],    # MOV DEST, A -> ALU ADD, DEST, %R0, A ; DEST = A
-           'movi'  :['alui 0, {0}, %R0, {1}'],  # MOVI DEST, A -> ALUI ADD, DEST, %R0, IMM ; DEST = IMM
-           'inc'  :['alui 0, {0}, {0}, 1'],     # INC A -> ALUI ADD, A, A, 1 ; A + 1
-           'dec'  :['alui 2, {0}, {0}, 1'],     # DEC A -> ALUI SUB, A, A, 1 ; A - 1
-           'cmp'  :['alu 2, %R0, {0}, {1}'],    # CMP A, B -> ALU SUB, %R0, A, B ; A - B (set flags)
-           'cmpi' :['alui 2, %R0, {0}, {1}'],   # CMPI A, B -> ALUI SUB, %R0, A, IMM ; A - IMM (set flags)
-           'shl'  :['alui 4, {0}, {1}, {2}'],   # SHL DEST, A, B -> ALUI MULT, DEST, A, 2**B ; DEST = A << B
-           'add'  :['alu 0, {0}, {1}, {2}'],    # ADD DEST, A, B -> ALU ADD, DEST, A, B ; DEST = A + B
-           'addi' :['alui 0, {0}, {1}, {2}'],   # ADDI DEST, A, IMM -> ALUI ADD, DEST, A, IMM ; DEST = A + IMM
-           'addc' :['alu 1, {0}, {1}, {2}'],    # ADDC DEST, A, B -> ALU ADDC, DEST, A, B ; DEST = A + B (w/carry)
-           'addci':['alui 1, {0}, {1}, {2}'],   # ADDCI DEST, A, IMM -> ALUI ADDC, DEST, A, IMM ; DEST = A + IMM (w/carry)
-           'sub'  :['alu 2, {0}, {1}, {2}'],    # SUB DEST, A, B -> ALU SUB, DEST, A, B ; DEST = A - B
-           'subi' :['alui 2, {0}, {1}, {2}'],   # SUBI DEST, A, IMM -> ALUI SUB, DEST, A, IMM ; DEST = A - IMM
-           'subb' :['alu 3, {0}, {1}, {2}'],    # SUBB DEST, A, B -> ALU SUBB, DEST, A, B ; DEST = A - B (w/borrow)
-           'subbi':['alui 3, {0}, {1}, {2}'],   # SUBBI DEST, A, IMM -> ALUI SUBB, DEST, A, IMM ; DEST = A - IMM (w/borrow)
-           'mult' :['alu 4, {0}, {1}, {2}'],    # MULT DEST, A, B -> ALU MULT, DEST, A, B ; DEST = A * B
-           'multi':['alui 4, {0}, {1}, {2}'],   # MULTI DEST, A, IMM -> ALUI MULT, DEST, A, IMM ; DEST = A * IMM
-           'and'  :['alu 5, {0}, {1}, {2}'],    # AND DEST, A, B -> ALU AND, DEST, A, B ; DEST = A & B
-           'andi' :['alui 5, {0}, {1}, {2}'],   # ANDI DEST, A, IMM -> ALUI AND, DEST, A, IMM ; DEST = A & IMM
-           'or'   :['alu 6, {0}, {1}, {2}'],    # OR DEST, A, B -> ALU OR, DEST, A, B ; DEST = A | B
-           'ori'  :['alui 6, {0}, {1}, {2}'],   # ORI DEST, A, IMM -> ALUI OR, DEST, A, IMM ; DEST = A | IMM
-           'xor'  :['alu 7, {0}, {1}, {2}'],    # XOR DEST, A, B -> ALU XOR, DEST, A, B ; DEST = A ^ B
-           'xori' :['alui 7, {0}, {1}, {2}'],   # XORI DEST, A, IMM -> ALUI XOR, DEST, A, IMM ; DEST = A ^ IMM
-           'nand' :['alu 8, {0}, {1}, {2}'],    # NAND DEST, A, B -> ALU NAND, DEST, A, B ; DEST = !(A & B)
-           'nandi':['alui 8, {0}, {1}, {2}'],   # NANDI DEST, A, IMM -> ALUI NAND, DEST, A, IMM ; DEST = !(A & IMM)
-           'nor'  :['alu 9, {0}, {1}, {2}'],    # NOR DEST, A, B -> ALU NOR, DEST, A, B ; DEST = !(A | B)
-           'nori' :['alui 9, {0}, {1}, {2}'],   # NORI DEST, A, IMM -> ALUI NOR, DEST, A, IMM ; DEST = !(A | IMM)
-           'xnor' :['alu 10, {0}, {1}, {2}'],   # XNOR DEST, A, B -> ALU XNOR, DEST, A, B ; DEST = !(A ^ B)
-           'xnori':['alui 10, {0}, {1}, {2}'],  # XNORI DEST, A, IMM -> ALUI XNOR, DEST, A, IMM ; DEST = !(A ^ IMM)
-           'shr'  :['alu 11, {0}, {1}, %R0'],   # SHR DEST, A -> ALU SHR, DEST, A, %R0 ; DEST = A >> 1
-           'asr'  :['alu 12, {0}, {1}, %R0'],   # ASR DEST, A -> ALU ASR, DEST, A, %R0 ; DEST = A ~>> 1
-           'rol'  :['alu 13, {0}, {1}, %R0'],   # ROL DEST, A -> ALU ROL, DEST, A, %R0 ; DEST = A ROL 1
-           'ror'  :['alu 14, {0}, {1}, %R0'],   # ROR DEST, A -> ALU ROR, DEST, A, %R0 ; DEST = A ROR 1
-           'shrc' :['alu 15, {0}, {1}, %R0'],   # SHRC DEST, A -> ALU SHRC, DEST, A, %R0 ; DEST = (A >> 1) | (Carry << 15)
-           'neg'  :['multi {0}, {1}, -1'],      # NEG DEST, A -> MULTI DEST, A, -1 ; DEST = -A, (A * -1)
-           'not'  :['alu 9, {0}, {1}, %R0'],    # NOT DEST, A -> ALU NOR, DEST, A, %R0 ; DEST = !A
-           'str'  :['strl 0, {0}, {1}, {2}'],   # STR REG, A, B -> STRL 0, REG, A, B ; REG = MEMORY[A, B]
-           'strx' :['strl 1, {0}, {1}, {2}'],   # STRX REG, A, IMM -> STRL 1, REG, A, IMM ; REG = MEMORY[A, IMM]
-           'lod'  :['lodl 0, {0}, {1}, {2}'],   # LOD 0, DEST, A, B -> LODL 0, DEST, A, B ; MEMORY[A, B] = REG
-           'lodx' :['lodl 1, {0}, {1}, {2}'],   # LODX 0, DEST, A, IMM -> LODL 1, DEST, A, IMM ; MEMORY[A, IMM] = REG
-           'jz'   :['jf 0, {0}'],
-           'jc'   :['jf 1, {0}'],
-           'jo'   :['jf 2, {0}'],
-           'js'   :['jf 3, {0}'],
-           'jgt'  :['jf 4, {0}'],
-           'jlt'  :['jf 5, {0}'],
-           'jb'   :['jf 6, {0}'],
-           'jirqe':['jf 7, {0}'],
-           'jnz'  :['jf 8, {0}'],
-           'jnc'  :['jf 9, {0}'],
-           'jno'  :['jf 10, {0}'],
-           'jns'  :['jf 11, {0}'],
-           'jngt' :['jf 12, {0}'],
-           'jnlt' :['jf 13, {0}'],
-           'jnb'  :['jf 14, {0}'],
-           'jnirqe':['jf 15, {0}'],
+           'mov'  :[['alu 0, %{0}, %R0, %{1}', 'DA'],   # MOV DEST, A -> ALU ADD, DEST, %R0, A ; DEST = A
+                    ['alui 0, %{0}, %R0, {1}', 'DI'],], # MOVI DEST, A -> ALUI ADD, DEST, %R0, IMM ; DEST = IMM
+           'inc'  :[['alui 0, %{0}, %{0}, 1', 'A'],], # INC A -> ALUI ADD, A, A, 1 ; A + 1
+           'dec'  :[['alui 2, %{0}, %{0}, 1', 'A'],], # DEC A -> ALUI SUB, A, A, 1 ; A - 1
+           'cmp'  :[['alu 2, %R0, %{0}, %{1}', 'AB'],    # CMP A, B -> ALU SUB, %R0, A, B ; A - B (set flags)
+                    ['alui 2, %R0, %{0}, {1}', 'AI'],],  # CMPI A, B -> ALUI SUB, %R0, A, IMM ; A - IMM (set flags)
+           'shl'  :[['alui 4, %{0}, %{1}, 2', 'DA'],],     # SHL DEST, A -> ALUI MULT, DEST, A, 2 ; DEST = A << 1
+           'add'  :[['alu 0, %{0}, %{1}, %{2}', 'DAB'],    # ADD DEST, A, B -> ALU ADD, DEST, A, B ; DEST = A + B
+                    ['alui 0, %{0}, %{1}, {2}', 'DAI'],],  # ADDI DEST, A, IMM -> ALUI ADD, DEST, A, IMM ; DEST = A + IMM
+           'addc' :[['alu 1, %{0}, %{1}, %{2}', 'DAB'],    # ADDC DEST, A, B -> ALU ADDC, DEST, A, B ; DEST = A + B (w/carry)
+                    ['alui 1, %{0}, %{1}, {2}', 'DAI'],],  # ADDCI DEST, A, IMM -> ALUI ADDC, DEST, A, IMM ; DEST = A + IMM (w/carry)
+           'sub'  :[['alu 2, %{0}, %{1}, %{2}', 'DAB'],    # SUB DEST, A, B -> ALU SUB, DEST, A, B ; DEST = A - B
+                    ['alui 2, %{0}, %{1}, {2}', 'DAI'],],  # SUBI DEST, A, IMM -> ALUI SUB, DEST, A, IMM ; DEST = A - IMM
+           'subb' :[['alu 3, %{0}, %{1}, %{2}', 'DAB'],    # SUBB DEST, A, B -> ALU SUBB, DEST, A, B ; DEST = A - B (w/borrow)
+                    ['alui 3, %{0}, %{1}, {2}', 'DAI'],],  # SUBBI DEST, A, IMM -> ALUI SUBB, DEST, A, IMM ; DEST = A - IMM (w/borrow)
+           'mult' :[['alu 4, %{0}, %{1}, %{2}', 'DAB'],    # MULT DEST, A, B -> ALU MULT, DEST, A, B ; DEST = A * B
+                    ['alui 4, %{0}, %{1}, {2}', 'DAI'],],  # MULTI DEST, A, IMM -> ALUI MULT, DEST, A, IMM ; DEST = A * IMM
+           'and'  :[['alu 5, %{0}, %{1}, %{2}', 'DAB'],    # AND DEST, A, B -> ALU AND, DEST, A, B ; DEST = A & B
+                    ['alui 5, %{0}, %{1}, {2}', 'DAI'],],  # ANDI DEST, A, IMM -> ALUI AND, DEST, A, IMM ; DEST = A & IMM
+           'or'   :[['alu 6, %{0}, %{1}, %{2}', 'DAB'],    # OR DEST, A, B -> ALU OR, DEST, A, B ; DEST = A | B
+                    ['alui 6, %{0}, %{1}, {2}', 'DAI'],],  # ORI DEST, A, IMM -> ALUI OR, DEST, A, IMM ; DEST = A | IMM
+           'xor'  :[['alu 7, %{0}, %{1}, %{2}', 'DAB'],    # XOR DEST, A, B -> ALU XOR, DEST, A, B ; DEST = A ^ B
+                    ['alui 7, %{0}, %{1}, {2}', 'DAI'],],  # XORI DEST, A, IMM -> ALUI XOR, DEST, A, IMM ; DEST = A ^ IMM
+           'nand' :[['alu 8, %{0}, %{1}, %{2}', 'DAB'],    # NAND DEST, A, B -> ALU NAND, DEST, A, B ; DEST = !(A & B)
+                    ['alui 8, %{0}, %{1}, {2}', 'DAI'],],  # NANDI DEST, A, IMM -> ALUI NAND, DEST, A, IMM ; DEST = !(A & IMM)
+           'nor'  :[['alu 9, %{0}, %{1}, %{2}', 'DAB'],    # NOR DEST, A, B -> ALU NOR, DEST, A, B ; DEST = !(A | B)
+                    ['alui 9, %{0}, %{1}, {2}', 'DAI'],],  # NORI DEST, A, IMM -> ALUI NOR, DEST, A, IMM ; DEST = !(A | IMM)
+           'xnor' :[['alu 10, %{0}, %{1}, %{2}', 'DAB'],   # XNOR DEST, A, B -> ALU XNOR, DEST, A, B ; DEST = !(A ^ B)
+                    ['alui 10, %{0}, %{1}, {2}', 'DAI'],], # XNORI DEST, A, IMM -> ALUI XNOR, DEST, A, IMM ; DEST = !(A ^ IMM)
+           'shr'  :[['alu 11, %{0}, %{1}, %R0', 'DA'],], # SHR DEST, A -> ALU SHR, DEST, A, %R0 ; DEST = A >> 1
+           'asr'  :[['alu 12, %{0}, %{1}, %R0', 'DA'],], # ASR DEST, A -> ALU ASR, DEST, A, %R0 ; DEST = A ~>> 1
+           'rol'  :[['alu 13, %{0}, %{1}, %R0', 'DA'],], # ROL DEST, A -> ALU ROL, DEST, A, %R0 ; DEST = A ROL 1
+           'ror'  :[['alu 14, %{0}, %{1}, %R0', 'DA'],], # ROR DEST, A -> ALU ROR, DEST, A, %R0 ; DEST = A ROR 1
+           'shrc' :[['alu 15, %{0}, %{1}, %R0', 'DA'],], # SHRC DEST, A -> ALU SHRC, DEST, A, %R0 ; DEST = (A >> 1) | (Carry << 15)
+           'neg'  :[['mult %{0}, %{1}, -1', 'DA'],],    # NEG DEST, A -> MULTI DEST, A, -1 ; DEST = -A, (A * -1)
+           'not'  :[['alu 9, %{0}, %{1}, %R0', 'DA'],],  # NOT DEST, A -> ALU NOR, DEST, A, %R0 ; DEST = !A
+           'jz'   :[['jf 0, [{0}]', 'a'],],   # jump if zero
+           'jc'   :[['jf 1, [{0}]', 'a'],],   # jump if carry
+           'jo'   :[['jf 2, [{0}]', 'a'],],   # jump if overflow
+           'js'   :[['jf 3, [{0}]', 'a'],],   # jump if sign
+           'jgt'  :[['jf 4, [{0}]', 'a'],],   # jump if greater than
+           'jlt'  :[['jf 5, [{0}]', 'a'],],   # jump if lesser than
+           'jb'   :[['jf 6, [{0}]', 'a'],],   # jump if BCD mode
+           'jirqe':[['jf 7, [{0}]', 'a'],],   # jump if IRQE
+           'jnz'  :[['jf 8, [{0}]', 'a'],],   # jump if not zero
+           'jnc'  :[['jf 9, [{0}]', 'a'],],   # jump if not carry
+           'jno'  :[['jf 10, [{0}]', 'a'],],  # jump if not overflow
+           'jns'  :[['jf 11, [{0}]', 'a'],],  # jump if not sign
+           'jngt' :[['jf 12, [{0}]', 'a'],],  # jump if not greater than
+           'jnlt' :[['jf 13, [{0}]', 'a'],],  # jump if not lesser than
+           'jnb'  :[['jf 14, [{0}]', 'a'],],  # jump if not BCD mode
+           'jnirqe':[['jf 15, [{0}]', 'a'],], # jump if not IRQE
          }
 ###- STARTING SYMBOLS -###
 # Dictionary that the assembler starts with
+# [<resolution value>, <custom type flags>]
+# - in most situations custom type flags aren't needed, unless you need custom behavior with the type system.
 STARTING_SYMBOLS = {
-                    '%R0' :0,  '%R1' :1,  '%R2' :2,  '%R3' :3, # Registers
-                    '%R4' :4,  '%R5' :5,  '%R6' :6,  '%R7' :7,
-                    '%R8' :8,  '%R9' :9,  '%RA' :10, '%SR' :11,
-                    '%SPX':12, '%SPY':13, '%CSX':14, '%CSY':15,
+                    'r0' :[0,  0,], 'r1' :[1,  0,], 'r2' :[2,  0,], 'r3' :[3,  0,], # Registers
+                    'r4' :[4,  0,], 'r5' :[5,  0,], 'r6' :[6,  0,], 'r7' :[7,  0,],
+                    'r8' :[8,  0,], 'r9' :[9,  0,], 'ra' :[10, 0,], 'sr' :[11, 0,],
+                    'spx':[12, 0,], 'spy':[13, 0,], 'csx':[14, 0,], 'csy':[15, 0,],
                    }
 
 ###- UTILITY -###
@@ -131,109 +145,225 @@ def is_define(word: str):
     return word == 'define'
 # Label check
 def is_label(word: str):
+    if(type(word) == int):
+        return 0
     if(len(word) == 0):
         return 0
     return (word[0] == '.') | ((word[-1] == ':') << 1)
+# Symbol check
+def is_symbol(word: list, symbols: dict):
+    if(type(word[0]) == int):
+        return False
+    if(len(word[0]) == 0):
+        return False
+    return (word[0].lower() in symbols)
 # Definition check
-def is_definition(word: str, symbols: dict):
-    if(len(word) == 0):
-        return 0
-    return word in symbols
+def is_definition(word: list, symbols: dict):
+    if(type(word[0]) == int):
+        return False
+    if(len(word[0]) == 0):
+        return False
+    return (word[0] in symbols)
+# Merge offset parameters
+def merge_offset_parameters(line: list, is_resolved: bool = False):
+    idx = 1
+    params = line[0]
+    while(idx != len(params)):
+        A = params[idx - 1]
+        B = params[idx]
+        if(B[1] & 0x8):
+            if(not ((A[1] & 0x1) and (B[1] & 0x1))):
+                fatal_error('assembler', f"merge_offset_parameters: on line {line[1]}, cannot merge \'{display_type(A, True)}\' and \'{display_type(B, True)}\'")
+            if((type(A[0]) == int) and (type(B[0]) == int)):
+                A[0] = A[0] + B[0]
+            elif(is_resolved):
+                fatal_error('assembler', f"merge_offset_parameters: line {line[1]} has unresolved parameters, couldn\'t merge.\n{rec_dump_array(line, 1)}\n{recompose_line(line)}")
+            else:
+                A[0] = f"{display_word([A[0], A[1] & (~0x30)])}, {display_word([B[0], B[1] & (~0x30)])}"
+            A[1] |= B[1] & 0x30
+            line[0].pop(idx)
+            continue
+        idx += 1
+# Merge offset parameters, but output as a copy and only with the types
+def merge_offset_types(line:list) -> list:
+    line_copy = deep_copy(line)
+    merge_offset_parameters(line_copy, False)
+    params = []
+
+    for param in line_copy[0]:
+        params.append(param[1])
+
+    return params
 # Pseudo-instruction check
-def is_pseudo(word: str):
-    if(len(word) == 0):
-        return 0
-    return word in PSEUDO_INSTRUCTIONS
+def is_pseudo(line: list):
+    if(len(line[0]) == 0):
+        fatal_error('assembler', f"is_pseudo: line {line[1]} is empty..? it should\'ve been filtered out by the assembler..\n{rec_dump_array(line, 1)}\n{resolve_line(line)}")
+    label = line[0][0][0]
+    if(label in PSEUDO_INSTRUCTIONS):
+        variations = PSEUDO_INSTRUCTIONS[label]
+        merged_param_types = merge_offset_types(line)[1:]
+
+        variant = -1
+        for variant_index in range(len(variations)):
+            if(variant > -1):
+                break
+            variation = variations[variant_index]
+            # Number of operands check
+            if(len(merged_param_types) != variation[0]):
+                continue
+            # Operand type check
+            offset = 0
+            for idx in range(len(merged_param_types)):
+                # override check
+                if((merged_param_types[idx] & 1) and (variation[2][idx - offset] & 0o100)):
+                    continue
+                if((merged_param_types[idx] & variation[2][idx - offset]) != variation[2][idx - offset]):
+                    break
+            else:
+                variant = variant_index
+        # Might be a native-instruction with the same label
+        if((variant == -1) and (label in OPCODES)):
+            return (False, variant)
+        # Is a pseudo-instruction, but types might not match
+        return (True, variant)
+    # Is not a pseudo-instruction
+    return (False, -1)
+# Instruction check
+def is_instruction(line: list):
+    if(len(line[0]) == 0):
+        fatal_error('assembler', f"is_instruction: line {line[1]} is empty..? it should\'ve been filtered out by the assembler..\n{rec_dump_array(line, 1)}\n{resolve_line(line)}")
+    label = line[0][0][0]
+    if(label in OPCODES):
+        variations = OPCODES[label]
+        merged_param_types = merge_offset_types(line)[1:]
+
+        variant = -1
+        for idx in range(len(variations)):
+            if(variant > -1):
+                break
+            variation = variations[idx]
+            # Number of operands check
+            if((len(merged_param_types) < variation[1][1]) or (len(merged_param_types) > variation[1][2])):
+                continue
+            # Operand type check
+            for idx2 in range(len(merged_param_types)):
+                type_flags = variation[1][0][idx2][0][4]
+                # override check
+                if((merged_param_types[idx2] & 1) and (type_flags & 0o100)):
+                    continue
+                if((merged_param_types[idx2] & type_flags) != type_flags):
+                    break
+            else:
+                variant = idx
+        return (True, variant)
+    return (False, -1)
 # Turn label as it appears in code into how it'll be used in instructions ('Done:' -> '.Done')
-def to_label(word: str, filename: str, line: int, caller: str):
-    if(len(word) == 0):
+def to_label(word: list, filename: str, line: int, caller: str):
+    if(len(word[0]) == 0):
         return 0
-    result = is_label(word)
+    result = is_label(word[0])
     if(result != 0):
         if(result == 1):
             return word
         elif(result == 2):
-            return ('.' + word[:-1])
+            return ['.' + word[0][:-1], word[1]]
         elif(result == 3):
-            return word[:-1]
+            return [word[0][:-1], word[1]]
     else:
-        fatal_error('assembler', f"{caller}: {filename}:{line}: Could not interpret label \'{word}\'")
+        fatal_error('assembler', f"{caller}: {filename}:{line}: Could not interpret label \'{word}\' ({display_type(word, True)})")
 # Convert label from many syntaxes into 1 syntax
-def convert_label(word: str):
-    result = is_label(word)
+def convert_label(word: list):
+    result = is_label(word[0])
     if(result != 0):
         if(result == 1):
-            return (word[1:] + ':')
+            return [word[0][1:] + ':', word[1]]
         elif(result == 2):
             return word
         elif(result == 3):
-            return word[1:]
+            return [word[0][1:], word[1]]
     else:
-        fatal_error('assembler debug', f"convert_label: Could not interpret label \'{word}\'")
-# Resolve symbols
-# symbols = [symbols, labels, definitions]
-def resolve(word: any, filename: str, line: int, symbols: dict, caller: str):
-    # Return unmodified if is an int
-    if(type(word) == int):
-        return word
-    # labels
-    elif(is_label(word) == 1):
-        try:
-            return symbols[1][word]
-        except KeyError as _ERR:
-            print('Labels table dump:')
-            print(dump_dict(symbols[1]))
-            fatal_error('assembler', f"{caller}: {filename}:{line}: Could not resolve label \'{word}\'\n{_ERR}")
-    # definitions
-    elif(is_definition(word, symbols[2])):
-        try:
-            return symbols[2][word]
-        except KeyError as _ERR:
-            fatal_error('assembler', f"{caller}: {filename}:{line}: Could not resolve definitioon-.. whaat? I checked! It's inside the table I swear! Take a look!\nDump:\n{dump_dict(symbols[2])}\n{_ERR}")
-    # everything else
-    try:
-        return symbols[0][word]
-    except KeyError as _ERR:
-        print('Symbol table dump:')
-        print(dump_dict(symbols[0]))
-        fatal_error('assembler', f"{caller}: {filename}:{line}: Could not resolve symbol \'{word}\'\n{_ERR}")
+        fatal_error('assembler debug', f"convert_label: Could not interpret label \'{word[0]}\' ({display_type(word, True)})")
+# Helper function for displaying the type of a word
+def display_type(word: list, a_or_an: bool = False):
+    if(word[1] & 0b111):
+        sentence = " ".join(["no type/"]*((word[1] >> 6) & 1) + ["immediate"]*(word[1] & 1) + ["register"]*((word[1] >> 1) & 1) + ["memory location"]*((word[1] >> 2) & 1) + [" + special behavior"]*((word[1] & (~0x7F)) != 0))
+    elif(word[1] & (~0b111)):
+        t = (word[1] >> 3) & 0b111
+        sentence = ["label", "definition", "ORG directive", "DB directive", "instruction"][t]
+    else:
+        sentence = "no type"
+    if(a_or_an):
+        if(sentence[0].lower() in "aeiou"):
+            return "an " + sentence
+        return "a " + sentence
+    return sentence
+# Helper function for displaying the types of an entire line
+def display_types_line(line: list, cleaned_input: bool = False):
+    if(cleaned_input):
+        return f"{line[0].upper()} {', '.join(display_word([display_type([0, x[0] & (~0b100)]), x[0]], x[1] if(len(x) > 1) else None) for x in line[1:])}"
+    else:
+        return f"{display_word(line[0][0])} {', '.join(display_word([display_type([0, x[1] & (~0b100)]), x[1]]) for x in line[0][1:])}"
+# Helper function for displaying the word based off of its flags
+def display_word(word: list, optional_substitute: int = None):
+    disp_word = str(word[0])
+    if(optional_substitute != None):
+        disp_word = disp_word + '=' + str(optional_substitute)
+    if(word[1] & 0b111):
+        if(word[1] & 0b1000):
+            disp_word = '+' + disp_word
+        if(word[1] & 0b010):
+            disp_word = '%' + disp_word
+        if(word[1] & 0o100):
+            # * = any
+            disp_word = '*' + disp_word
+        if(word[1] & (~0x7F)):
+            # + after = special behavior
+            disp_word = disp_word + '+'
+        if(word[1] & 0b100):
+            if(word[1] & 0b010000):
+                disp_word = '[' + disp_word
+            if(word[1] & 0b100000):
+                disp_word = disp_word + ']'
+    elif(word[1] != 0):
+        return disp_word.upper()
+    return disp_word
 # Resolve integers, ignores everything else
-def resolve_integer(word: any, filename: str, line: int, caller: str):
+def resolve_integer(word: list, filename: str, line: int, caller: str):
     # Return unmodified if is an int, or empty
-    if((type(word) == int) or (len(word) == 0)):
+    if((type(word[0]) == int) or (len(word[0]) == 0)):
         return word
     # Auto-detect format
-    if(word[0] in '-0123456789'):
+    if(word[0][0] in '-0123456789'):
         try:
             offset = 0
-            if(word[0] == '-'):
+            if(word[0][0] == '-'):
                 offset = 1
-            if(word[offset:offset + 2] == '0x'):
-                return int(word[:offset] + word[offset + 2:], 16)
-            elif(word[offset:offset + 2] == '0o'):
-                return int(word[:offset] + word[offset + 2:], 8)
-            elif(word[offset:offset + 2] == '0b'):
-                return int(word[:offset] + word[offset + 2:], 2)
+            if(word[0][offset:offset + 2] == '0x'):
+                return [int(word[0][:offset] + word[0][offset + 2:], 16), word[1]]
+            elif(word[0][offset:offset + 2] == '0o'):
+                return [int(word[0][:offset] + word[0][offset + 2:], 8), word[1]]
+            elif(word[0][offset:offset + 2] == '0b'):
+                return [int(word[0][:offset] + word[0][offset + 2:], 2), word[1]]
             else:
-                return int(word, 10)
+                return [int(word[0], 10), word[1]]
         except ValueError as _ERR:
-            fatal_error('assembler', f"{caller}: {filename}:{line}: Could not resolve number \'{word}\'\n{_ERR}")
+            fatal_error('assembler', f"{caller}: {filename}:{line}: Could not resolve number \'{word[0]}\' which is {display_type(word, True)}\n{_ERR}")
     # $ prefixed hexadecimal
-    elif(word[0] == '$'):
+    elif(word[0][0] == '$'):
         try:
-            return int(word[1:], 16)
+            return [int(word[0][1:], 16), word[1]]
         except ValueError as _ERR:
-            fatal_error('assembler', f"{caller}: {filename}:{line}: Could not resolve hexadecimal \'{word}\'\n{_ERR}")
+            fatal_error('assembler', f"{caller}: {filename}:{line}: Could not resolve hexadecimal \'{word[0]}\' which is {display_type(word, True)}\n{_ERR}")
     # Return unmodified if not an integer
     return word
 # Handle character constant
-def char_constant(string: str, idx: int, filename: str, line: int, caller: str, resolve_strings: bool = True):
-    idx_end=strfind_escape(string, '\'', idx + 1)
-    if(idx_end==-1):
+def char_constant(string: str, idx: int, filename: str, line: int, caller: str, resolve_strings: bool = True, default_flags: int = 0b001):
+    idx_end = strfind_escape(string, '\'', idx + 1)
+    if(idx_end == -1):
         fatal_error('assembler', f"{caller}: {filename}:{line}:{idx + 1}: Missing terminating \' character.\n{string}\n{' ' * idx}^{'~' * (len(string) - idx - 1)}")
     idx_end += 1
     if(not resolve_strings):
-        return (idx, idx_end, [string[idx:idx_end]])
+        return (idx, idx_end, [[string[idx:idx_end], default_flags]])
     try:
         evaluated = eval(string[idx:idx_end])
     except Exception as _ERR:
@@ -242,69 +372,111 @@ def char_constant(string: str, idx: int, filename: str, line: int, caller: str, 
         fatal_error('assembler', f"{caller}: {filename}:{line}:{idx + 1}: Too many characters in character constant.\n{string}\n{' ' * idx}^{'~' * (idx_end - idx - 1)}")
     elif(len(evaluated) == 0):
         fatal_error('assembler', f"{caller}: {filename}:{line}:{idx + 1}: Empty character constant.\n{string}\n{' ' * idx}^~")
-    return (idx, idx_end, [ord(evaluated) & ((1 << WORD_LENGTH) - 1)])
+    return (idx, idx_end, [[ord(evaluated) & ((1 << WORD_LENGTH) - 1), default_flags]])
 # Handle string constant
-def string_constant(string: str, idx: int, filename: str, line: int, caller: str, resolve_strings: bool = True):
-    idx_end=strfind_escape(string, '\"', idx + 1)
-    if(idx_end==-1):
+def string_constant(string: str, idx: int, filename: str, line: int, caller: str, resolve_strings: bool = True, default_flags: int = 0b001):
+    idx_end = strfind_escape(string, '\"', idx + 1)
+    if(idx_end == -1):
         fatal_error('assembler', f"{caller}: {filename}:{line}:{idx + 1}: Missing terminating \" character.\n{string}\n{' ' * idx}^{'~' * (len(string) - idx - 1)}")
     idx_end += 1
     if(not resolve_strings):
-        return (idx, idx_end, [string[idx:idx_end]])
+        return (idx, idx_end, [[string[idx:idx_end], default_flags]])
     try:
         evaluated = eval(string[idx:idx_end])
     except Exception as _ERR:
         fatal_error('assembler', f"{caller}: {filename}:{line}:{idx + 1}: Could not evaluate string constant.\n{string}\n{' ' * idx}^{'~' * (idx_end - idx - 1)}\n{_ERR}")
     if(len(evaluated) == 0):
         fatal_error('assembler', f"{caller}: {filename}:{line}:{idx + 1}: Empty string constant.\n{string}\n{' ' * idx}^~")
-    return (idx, idx_end, [(ord(char) & ((1 << WORD_LENGTH) - 1)) for char in evaluated])
-# Decompose instruction + character constants
-def decompose_instruction(string: str, filename: str, line: int, caller: str, resolve_strings: bool = True):
-    idx=0
-    output=[]
-    while(idx<len(string)):
-        idx=inverted_strfind(string, OPERAND_SEPARATORS, idx)
-        if(idx==-1):
+    return (idx, idx_end, [[(ord(char) & ((1 << WORD_LENGTH) - 1)), default_flags] for char in evaluated])
+# Decompose instruction params (+ character literals with both ' and ")
+def decompose_instruction_params(string: str, filename: str, line: int, caller: str, resolve_strings: bool = True, default_flags: int = 0b001):
+    idx = 0
+    output = []
+    while(idx < len(string)):
+        flags = default_flags
+        idx = inverted_strfind(string, OPERAND_SEPARATORS, idx)
+        if(idx == -1):
             break
-        if(string[idx] == '\''):
-            idx, idx_end, constant = char_constant(string, idx, filename, line, caller, resolve_strings)
-            output = output + constant
-        elif(string[idx] == '\"'):
-            idx, idx_end, constants = string_constant(string, idx, filename, line, caller, resolve_strings)
-            if(len(constants) != 1):
-                fatal_error('assembler', f"{caller}: {filename}:{line}:{idx + 1} There must be exactly 1 character in string constant. (for instruction operands)\n{string}\n{' ' * idx}^{'~' * (idx_end - idx - 1)}")
-            output = output + constants
+        if(string[idx] == '['):
+            idx += 1
+            idx_end = strfind_escape(string, ']', idx)
+            if(idx_end == -1):
+                fatal_error('assembler', f"{caller}: {filename}:{line}:{idx + 1}: Missing closing bracket for memory location type indicator.\n{string}\n{' ' * (idx - 1)}^{'~' * (len(string) - idx)}")
+            params = decompose_instruction_params(string[idx:idx_end].strip(), filename, line, caller + " handling memloc:", resolve_strings, default_flags | 0b100)
+            if(len(params) == 0):
+                fatal_error('assembler', f"{caller}: {filename}:{line}:{idx + 1}: Empty memory location type indicator.\n{string}\n{' ' * (idx - 1)}^{'~' * (idx_end - idx + 1)}")
+            params[0][1]  |= 0b010000
+            params[-1][1] |= 0b100000
+            output = output + params
+            idx_end += 1
         else:
-            idx_end=strfind(string, OPERAND_SEPARATORS, idx)
-            if(idx_end==-1):
-                output.append(string[idx:])
-                break
-            output.append(string[idx:idx_end])
-        idx=idx_end
+            if(string[idx] == '+'): # Parameter that should be merged
+                idx += 1
+                # If only a '+', add it to the output instead
+                try:
+                    if(string[idx] in OPERAND_SEPARATORS):
+                        output.append(['+', flags])
+                        idx_end = idx
+                        continue
+                except IndexError:
+                    output.append(['+', flags])
+                    break
+                # Check if not the first parameter
+                if(len(output) > 0):
+                    # Add merge flag
+                    flags = flags | 0b1000
+            if(string[idx] == '%'): # Register type
+                idx += 1
+                # If only a '%', add it to the output instead
+                try:
+                    if(string[idx] in OPERAND_SEPARATORS):
+                        output.append(['%', flags])
+                        idx_end = idx
+                        continue
+                except IndexError:
+                    output.append(['%', flags])
+                    break
+                flags = (flags & (~0b001)) | 0b010 # Swap immediate flag for register flag
+            if(string[idx] == '\''): # Character literal
+                idx, idx_end, constant = char_constant(string, idx, filename, line, caller, resolve_strings, flags)
+                output = output + constant
+            elif(string[idx] == '\"'): # Character literal (alias)
+                idx, idx_end, constants = string_constant(string, idx, filename, line, caller, resolve_strings, flags)
+                if(len(constants) != 1):
+                    fatal_error('assembler', f"{caller}: {filename}:{line}:{idx + 1}: There must be exactly 1 character in string constant. (for instruction operands)\n{string}\n{' ' * idx}^{'~' * (idx_end - idx - 1)}")
+                output = output + constants
+            else: # Don't know (label or definition)
+                idx_end = strfind(string, OPERAND_SEPARATORS, idx)
+                if(idx_end == -1):
+                    output.append([string[idx:], flags])
+                    break
+                output.append([string[idx:idx_end], flags])
+        idx = idx_end
     if(resolve_strings):
         return [resolve_integer(x, filename, line, caller) for x in output]
     return output
-# Decompose instruction + character constants + strings
-def decompose_instruction_multi(string: str, filename: str, line: int, caller: str, resolve_strings: bool = True):
-    idx=0
-    output=[]
-    while(idx<len(string)):
-        idx=inverted_strfind(string, OPERAND_SEPARATORS, idx)
-        if(idx==-1):
+# Decompose DB params (+ character literals + string constants)
+def decompose_DB_params(string: str, filename: str, line: int, caller: str, resolve_strings: bool = True, default_flags: int = 0b001):
+    idx = 0
+    output = []
+    while(idx < len(string)):
+        flags = default_flags
+        idx = inverted_strfind(string, OPERAND_SEPARATORS, idx)
+        if(idx == -1):
             break
-        if(string[idx] == '\''):
-            idx, idx_end, constant = char_constant(string, idx, filename, line, caller, resolve_strings)
+        if(string[idx] == '\''): # Character literal
+            idx, idx_end, constant = char_constant(string, idx, filename, line, caller, resolve_strings, flags)
             output = output + constant
-        elif(string[idx] == '\"'):
-            idx, idx_end, constants = string_constant(string, idx, filename, line, caller, resolve_strings)
+        elif(string[idx] == '\"'): # String constant (specific for DB)
+            idx, idx_end, constants = string_constant(string, idx, filename, line, caller, resolve_strings, flags)
             output = output + constants
-        else:
-            idx_end=strfind(string, OPERAND_SEPARATORS, idx)
-            if(idx_end==-1):
-                output.append(string[idx:])
+        else: # Don't know (label or definition)
+            idx_end = strfind(string, OPERAND_SEPARATORS, idx)
+            if(idx_end == -1):
+                output.append([string[idx:], flags])
                 break
-            output.append(string[idx:idx_end])
-        idx=idx_end
+            output.append([string[idx:idx_end], flags])
+        idx = idx_end
     if(resolve_strings):
         return [resolve_integer(x, filename, line, caller) for x in output]
     return output
@@ -323,7 +495,7 @@ def parse_line(line: list, filename: str, caller: str, resolve_strings: bool = T
         else:
             instruction = line[0][split_A:split_B]
         if(is_label(instruction)):
-            decomposed_lines.append([[instruction], line[1]])
+            decomposed_lines.append([[[instruction, 0o10]], line[1]])
         if(split_B == -1):
             break
         split_A = inverted_strfind(line[0], INSTRUCTION_SPACING, split_B)
@@ -336,25 +508,29 @@ def parse_line(line: list, filename: str, caller: str, resolve_strings: bool = T
     instruction = instruction.lower()
     # Definition
     if(is_define(instruction)):
-        decomposed_definitions.append([[instruction] + decompose_instruction(parameters, filename, line[1], caller, resolve_strings), line[1]])
+        decomposed_definitions.append([[[instruction, 0o20]] + decompose_instruction_params(parameters, filename, line[1], caller, resolve_strings), line[1]])
     # ORG
     elif(instruction == 'org'):
-        decomposed_lines.append([[instruction] + decompose_instruction(parameters, filename, line[1], caller, resolve_strings), line[1]])
+        decomposed_lines.append([[[instruction, 0o30]] + decompose_instruction_params(parameters, filename, line[1], caller, resolve_strings), line[1]])
     # DB
     elif(instruction == 'db'):
-        decomposed_lines.append([[instruction] + decompose_instruction_multi(parameters, filename, line[1], caller, resolve_strings), line[1]])
+        decomposed_lines.append([[[instruction, 0o40]] + decompose_DB_params(parameters, filename, line[1], caller, resolve_strings), line[1]])
     # Assume it's an instruction
     else:
-        decomposed_lines.append([[instruction] + decompose_instruction(parameters, filename, line[1], caller, resolve_strings), line[1]])
-    return decomposed_lines, decomposed_definitions
+        decomposed_lines.append([[[instruction, 0o50]] + decompose_instruction_params(parameters, filename, line[1], caller, resolve_strings), line[1]])
+    return (decomposed_lines, decomposed_definitions)
 # Recompose line
 def recompose_line(line: list):
-    instruction = line[0][0]
-    if(is_label(instruction)):
-        return convert_label(instruction)
-    return instruction.upper() + ' ' + ', '.join(str(x) for x in line[0][1:])
+    first_word = line[0][0]
+
+    # Label
+    if(first_word[1] == 0o10):
+        return convert_label(first_word)[0]
+    # Everything else
+    else:
+        return display_word(first_word) + (' '*(len(line[0]) > 1)) + ', '.join(display_word(x) for x in line[0][1:])
 # Display multiple lines of Assembly
-def print_assembly(lines: list, last_was: list, line_width: int):
+def print_assembly(lines: list, last_was: dict, line_width: int):
     last_line = 0
     special_case = False
     for line in lines:
@@ -362,12 +538,19 @@ def print_assembly(lines: list, last_was: list, line_width: int):
             print("%s: "%(' ' * line_width), end='')
         else:
             print("%0*d: "%(line_width, line[1]), end='')
-        if((line[0][0] not in ['org', 'db', 'define']) and (is_label(line[0][0]) == 0)):
+        # Check if instruction
+#        if((line[0][0][0] not in ['org', 'db', 'define']) and (is_label(line[0][0][0]) == 0)):
+        if(line[0][0][1] == 0o50):
             print("  ", end='')
         print(recompose_line(line), end='')
+        # Display instruction variation
+        if((line[0][0][1] == 0o50) and (len(line[0][0]) > 2)):
+            print(" ; variation %d"%(line[0][0][2]), end='')
         # I don't even know
         if(((line[1] in last_was) and (last_line != line[1])) or special_case):
-            if(is_label(line[0][0]) != 0):
+            # Check if label
+#            if(is_label(line[0][0][0]) != 0):
+            if(line[0][0][1] == 0o10):
                 special_case = True
             else:
                 print(" ; resolved from ; %s"%(recompose_line(last_was[line[1]])), end='')
@@ -375,7 +558,7 @@ def print_assembly(lines: list, last_was: list, line_width: int):
         last_line = line[1]
         print()
 # Display multiple lines of Assembly with machine code positions
-def print_assembly_wordpos(lines: list, last_was: list, line_width: int, hex_width: int):
+def print_assembly_wordpos(lines: list, last_was: dict, line_width: int, hex_width: int):
     last_line = 0
     special_case = False
     for line in lines:
@@ -383,30 +566,149 @@ def print_assembly_wordpos(lines: list, last_was: list, line_width: int, hex_wid
             print("%s:%0*X: "%(' ' * line_width, hex_width, line[2]), end='')
         else:
             print("%0*d:%0*X: "%(line_width, line[1], hex_width, line[2]), end='')
-        if((line[0][0] not in ['org', 'db', 'define']) and (is_label(line[0][0]) == 0)):
+        # Check if instruction
+#        if((line[0][0][0] not in ['org', 'db', 'define']) and (is_label(line[0][0][0]) == 0)):
+        if(line[0][0][1] == 0o50):
             print("  ", end='')
         print(recompose_line(line), end='')
+        if((line[0][0][1] == 0o50) and (len(line[0][0]) > 2)):
+            print(" ; variation %d"%(line[0][0][2]), end='')
         # I don't even know
         if(((line[1] in last_was) and (last_line != line[1])) or special_case):
-            if(is_label(line[0][0]) != 0):
+            # Check if label
+#            if(is_label(line[0][0][0]) != 0):
+            if(line[0][0][1] == 0o10):
                 special_case = True
             else:
                 print(" ; resolved from ; %s"%(recompose_line(last_was[line[1]])), end='')
                 special_case = False
-        elif(line[0][0] == 'org'):
+        # Check if ORG directive
+#        elif(line[0][0][0] == 'org'):
+        elif(line[0][0][1] == 0o30):
             print(" ; jump to 0x%0*X"%(hex_width, line[2]), end='')
         last_line = line[1]
         print()
 # Strip line of comments
-def remove_comment(comment_symbols: str, line: str):
-    index=strfind(line, comment_symbols)
-    if(index==-1):
+def remove_comment(comment_symbols: list, line: str):
+    idx = [line.find(symbol) for symbol in comment_symbols]
+    idx = [x for x in idx if(x != -1)]
+    if(len(idx) == 0):
         return line
-    return line[:index]
+    return line[:min(idx)]
+# Bake a cake!
+def bake_constants(matt_mode):
+    # Calculate number of operands and add to macro element
+    pop_keys = [pop for pop in PSEUDO_INSTRUCTIONS]
+    for pop in pop_keys:
+        popinfo=PSEUDO_INSTRUCTIONS[pop]
+        for idx in range(len(popinfo)):
+            popinfo[idx].insert(0, len(popinfo[idx][1]))
+            # Deal with multi-line pseudo-instructions in Matt mode later on
+
+            # Make requirement list
+            requirements = []
+            for c in popinfo[idx][2]:
+                requirements.append(OPERANDS[c][4])
+            popinfo[idx][2] = requirements
+
+    # Check operands
+    for operand in OPERANDS:
+        if(OPERANDS[operand][1] >= INSTRUCTION_MAX_LENGTH):
+            fatal_error('assembler', f"baking stage: wtf: Operand \'{OPERANDS[operand][5]}\' defined in a word outside set maximum length, are you sure it\'s correct?")
+        if(OPERANDS[operand][0] >= WORD_LENGTH):
+            fatal_error('assembler', f"baking stage: wtf: Operand \'{OPERANDS[operand][5]}\' shift amount is bigger than a word, are you sure it\'s correct?")
+        if((((OPERANDS[operand][1] + 1) * WORD_LENGTH) - OPERANDS[operand][0] - OPERANDS[operand][2]) < 0):
+            fatal_error('assembler', f"baking stage: wtf: Operand \'{OPERANDS[operand][5]}\' is defined outside the instruction, are you sure it\'s correct?")
+
+    # Make instructions more machine-friendly and check instruction lengths
+    for opcode in OPCODES:
+        variations = OPCODES[opcode]
+        for variation_index in range(len(variations)):
+            variation = variations[variation_index]
+            # Error and prompt user if instruction's length exceeds max length
+            if((variation[3] * WORD_LENGTH) > (INSTRUCTION_MAX_LENGTH * WORD_LENGTH)):
+                fatal_error('assembler', f"baking stage: wtf: Instruction \'{opcode.upper()}\' variation {variation_index} exceeds set maximum length, are you sure it\'s correct?")
+
+            processed_opcode=[]
+            operands=variation[1]
+
+            idx=0
+            minimum_operands=0
+            while(idx<len(operands)):
+                # Process optional operand
+                if(operands[idx]=='['):
+                    idx_end=operands.find(']', idx)
+                    if(idx_end==-1):
+                        fatal_error('assembler', f"baking stage: syntax error: No closing brace for operand \'{operands[idx+1]}\' in instruction \'{opcode.upper()}\' variation {variation_index}.")
+                    substr=operands[idx+1:idx_end]
+                    if(substr[2:]==''):
+                        fatal_error('assembler', f"baking stage: wtf: No default defined for operand \'{substr[0]}\' for instruction \'{opcode.upper()}\' variation {variation_index}.")
+                    processed_opcode.append([OPERANDS[substr[0]], int(substr[2:])])
+                    idx=idx_end+1
+                    minimum_operands-=1
+                # Process sequence of mandatory operands
+                else:
+                    idx_end=operands.find('[', idx)
+                    if(idx_end==-1):
+                        idx_end += len(operands) + 1
+                    substr=operands[idx:idx_end]
+                    processed_opcode = processed_opcode + [[OPERANDS[x]] for x in substr]
+                    idx=idx_end
+
+            # Check operands used in instruction; make sure operands don't go outside the instruction
+            for index in range(len(processed_opcode)):
+                operand = processed_opcode[index][0]
+                if(operand[1] >= variation[3]):
+                    fatal_error('assembler', f"baking stage: wtf: Operand \'{operand[5]}\' in instruction \'{opcode.upper()}\' variation {variation_index} is defined in a word outside the instruction\'s length, are you sure it\'s correct?")
+
+            maximum_operands=len(processed_opcode)
+            minimum_operands=minimum_operands+maximum_operands
+            processed_opcode=[processed_opcode, minimum_operands, maximum_operands]
+            variation[1]=processed_opcode
+
+    # Validity check
+    for opcode in OPCODES:
+        variations = OPCODES[opcode]
+        for variation_index in range(len(variations)):
+            variation = variations[variation_index]
+            operands=variation[1][0]
+            maxim=1
+            for idx, operand in enumerate(operands):
+                if(maxim <= len(operand)):
+                    maxim=len(operand)
+                else:
+                    fatal_error('assembler', f"baking stage: wtf: Optional operand \'{operands[idx-1][0][5]}\' declared inbetween mandatory ones in instruction \'{opcode.upper()}\' variation {variation_index}! (Will cause problems later)")
 
 ###- MAIN THING -###
 # Assemble function
 def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_flags: int, matt_mode: bool):
+    if(debug_flags & 0b1100):
+        if(debug_flags & 0x8):
+            print("ISA-defined symbols:")
+            for symbol in STARTING_SYMBOLS:
+                symbolinfo = STARTING_SYMBOLS[symbol]
+                print('- \'%s\' = %d (%s)'%(symbol, symbolinfo[0], display_word([display_type([symbolinfo[0], symbolinfo[1] & (~0b100)]), symbolinfo[1]])))
+        if(debug_flags & 0x4):
+            print("Native-instructions:")
+            for opcode in OPCODES:
+                variations=OPCODES[opcode]
+                print(f"{opcode}:")
+                for variation_index in range(len(variations)):
+                    variation = variations[variation_index]
+                    params = [display_word([display_type([0, x[0][4] & (~0b100)]), x[0][4]], x[1] if(len(x) != 1) else None) for x in variation[1][0]]
+
+                    print(f'- {variation_index}: ' + opcode.upper() + ' ' + ', '.join(params))
+            print("\nPseudo-instructions:")
+            for label in PSEUDO_INSTRUCTIONS:
+                variations=PSEUDO_INSTRUCTIONS[label]
+                print(f"{label}:")
+                for variation_index in range(len(variations)):
+                    variation = variations[variation_index]
+                    params = [display_word([display_type([0, x & (~0b100)]), x], None) for x in variation[2]]
+
+                    print(f'- {variation_index}: ' + label.upper() + ' ' + ', '.join(params) + ' -> ' + variation[1])
+        exit()
+
     try:
         assembly_file = open(assembly_filename, 'r')
     except FileNotFoundError as _ERR:
@@ -417,19 +719,25 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
             # Matt mode engaged.
             print(f"assembler: Matt mode active. ORG, DB, & multi-line pseudo-instructions are disabled.")
     lines = [line.strip() for line in assembly_file]
+    assembly_file.close()
 
     # DEBUG: ROM address size constant
     ROM_address_size = int(log2(ROM_size) + 3) >> 2
     line_address_size = int(log(len(lines), 10) + 1)
+    word_display_size = int(WORD_LENGTH + 3) >> 2
     if(verbose_level >= 2):
         print("Address hex width: %d (%s)"%(ROM_address_size, ''.join(hex(x%16).upper()[2] for x in range(ROM_address_size))))
         print("Line address width: %d (%s)"%(line_address_size, ''.join(chr(0x30 + (x%10)) for x in range(line_address_size))))
+        print("Word display width: %d (%s)"%(word_display_size, ''.join(hex(x%16).upper()[2] for x in range(word_display_size))))
 
     # Remove comments and blanklines, and add line number
-    lines = [[remove_comment("/;#", line).strip(), idx+1] for idx, line in enumerate(lines)]
+    lines = [[remove_comment(COMMENT_SYMBOLS, line).strip(), idx+1] for idx, line in enumerate(lines)]
 
     # Remove empty lines & add line numbers
     lines = [line for line in lines if(len(line[0]) != 0)]
+
+    if(len(lines) == 0):
+        fatal_error('assembler', f"{assembly_filename}: File empty.")
 
     # Populatesymbol table
     symbols = STARTING_SYMBOLS
@@ -438,91 +746,10 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
     # Labels table
     labels = {}
 
-    # Calculate number of operands and add to macro element
-    pop_keys = [pop for pop in PSEUDO_INSTRUCTIONS]
-    for pop in pop_keys:
-        popinfo=PSEUDO_INSTRUCTIONS[pop]
-        # Remove pseudo instructions with more than 1 line of resolution if in Matt mode
-        if((len(popinfo[0].split('\n')) > 1) and matt_mode):
-            PSEUDO_INSTRUCTIONS.pop(pop)
-            continue
-        # sketch sketch
-        words=[]
-        for line in popinfo[0].split('\n'):
-            for decomposed in parse_line([line, 0], assembly_filename, 'pseudo-instruction prepper')[0]:
-                words += decomposed[0]
-        nums=[int(word[1:len(word)-1]) for word in words if str(word)[0]=='{']
-        if(len(nums)==0):
-            PSEUDO_INSTRUCTIONS[pop].insert(0, 0)
-        else:
-            PSEUDO_INSTRUCTIONS[pop].insert(0, max(nums)+1)
-    
-    # Check operands
-    for operand in OPERANDS:
-        if(OPERANDS[operand][1] >= INSTRUCTION_MAX_LENGTH):
-            fatal_error('assembler', f"loading stage: wtf: Operand \'{OPERANDS[operand][4]}\' defined in a word outside set maximum length, are you sure it\'s correct?")
-        if(OPERANDS[operand][0] >= WORD_LENGTH):
-            fatal_error('assembler', f"loading stage: wtf: Operand \'{OPERANDS[operand][4]}\' shift amount is bigger than a word, are you sure it\'s correct?")
-        if((((OPERANDS[operand][1] + 1) * WORD_LENGTH) - OPERANDS[operand][0] - OPERANDS[operand][2]) < 0):
-            fatal_error('assembler', f"loading stage: wtf: Operand \'{OPERANDS[operand][4]}\' is defined outside the instruction, are you sure it\'s correct?")
-
-    # Make instructions more machine-friendly and check instruction lengths
-    for opcode in OPCODES:
-        # Error and prompt user if instruction's length exceeds max length
-        if((OPCODES[opcode][3] * WORD_LENGTH) > (INSTRUCTION_MAX_LENGTH * WORD_LENGTH)):
-            fatal_error('assembler', f"loading stage: wtf: Instruction \'{opcode}\' exceeds set maximum length, are you sure it\'s correct?")
-
-        processed_opcode=[]
-        operands=OPCODES[opcode][1]
-
-        idx=0
-        minimum_operands=0
-        while(idx<len(operands)):
-            # Process optional operand
-            if(operands[idx]=='['):
-                idx_end=operands.find(']', idx)
-                if(idx_end==-1):
-                    fatal_error('assembler', f"loading stage: syntax error: No closing brace for operand \'{operands[idx+1]}\' in instruction \'{opcode}\'.")
-                substr=operands[idx+1:idx_end]
-                if(substr[2:]==''):
-                    fatal_error('assembler', f"loading stage: wtf: No default defined for operand \'{substr[0]}\' for instruction \'{opcode}\'.")
-                processed_opcode.append([substr[0], int(substr[2:])])
-                idx=idx_end+1
-                minimum_operands-=1
-            # Process sequence of mandatory operands
-            else:
-                idx_end=operands.find('[', idx)
-                if(idx_end==-1):
-                    idx_end += len(operands) + 1
-                substr=operands[idx:idx_end]
-                processed_opcode = processed_opcode + [[x] for x in substr]
-                idx=idx_end
-
-        # Check operands used in instruction; make sure operands don't go outside the instruction
-        for index in range(len(processed_opcode)):
-            operand = processed_opcode[index][0]
-            if(OPERANDS[operand][1] >= OPCODES[opcode][3]):
-                fatal_error('assembler', f"loading stage: wtf: Operand \'{OPERANDS[operand][4]}\' in instruction \'{opcode}\' is defined in a word outside the instruction\'s length, are you sure it\'s correct?")
-
-        maximum_operands=len(processed_opcode)
-        minimum_operands=minimum_operands+maximum_operands
-        processed_opcode=[processed_opcode, minimum_operands, maximum_operands]
-        OPCODES[opcode][1]=processed_opcode
-
-    # Validity check
-    for opcode in OPCODES:
-        operands=OPCODES[opcode][1][0]
-        maxim=1
-        for idx, operand in enumerate(operands):
-            if(maxim <= len(operand)):
-                maxim=len(operand)
-            else:
-                fatal_error('assembler', f"loading stage: wtf: Optional operand \'{operands[idx-1][0]}\' declared inbetween mandatory ones in instruction \'{opcode}\'! (Will cause problems later)")
-
-#    for symbol in OPCODES:
-#        symbols[symbol] = OPCODES[symbol][0] # Add corresponding numeral opcode
-
     # Decompose instructions and separate labels
+    # DEBUG: show current job
+    if(verbose_level >= 1):
+        print("\nPARSING LINES..")
     decomposed = []
     decomposed_definitions = []
     original_lines = {}
@@ -543,8 +770,132 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
         print("\nDEFINITIONS:")
         print_assembly(decomposed_definitions, {}, line_address_size)
 
+    # Resolve symbols
+    # DEBUG: show current job
+    if(verbose_level >= 1):
+        print("\nRESOLVING DEFINITIONS.. (ISA-DEFINED)")
+    for index in range(len(decomposed)):
+        line = decomposed[index]
+        line_number = line[1]
+        params = line[0]
+
+        line_before_change = deep_copy(line)
+        changed = False
+        for index2 in range(1, len(params)):
+            param = params[index2]
+            if(is_symbol(param, symbols)):
+                changed = True
+                symbolinfo = symbols[param[0].lower()]
+                params[index2] = [symbolinfo[0], param[1] | symbolinfo[1]]
+
+        # DEBUG: show resolved line
+        if(verbose_level >= 2):
+            if(changed):
+                print("%0*d: %s -> %s"%(line_address_size, line_number, recompose_line(line_before_change), recompose_line(line)))
+
+    # DEBUG: display Assembly right now
+    if(verbose_level >= 3):
+        print("ASSEMBLY:")
+        print_assembly(decomposed, {}, line_address_size)
+
+    # Memorize definitions (and resolve their parameters if needed)
+    # DEBUG: show current job
+    if(verbose_level >= 1):
+        print("\nMEMORIZING USER-DEFINED DEFINITIONS, PRE-LABELS..")
+    # Q: "why not tasks = decomposed_definitions?"
+    # A: "because I only want a list of pointers to the lines so I don't modify the original"
+    tasks = [x for x in decomposed_definitions]
+    # Parameter check
+    for definition in tasks:
+        merged_types = merge_offset_types(definition)
+        # Once, there were 4 little definitions
+        if(len(merged_types) > 3): # One had too many parameters
+            fatal_error('assembler', f"definition parameter check: {assembly_filename}:{definition[1]}: Too many parameters for definition.")
+        elif(len(merged_types) == 2): # One had only a name
+            fatal_error('assembler', f"definition parameter check: {assembly_filename}:{definition[1]}: Only name given for definition.")
+        elif(len(merged_types) == 1): # One had no parameters
+            fatal_error('assembler', f"definition parameter check: {assembly_filename}:{definition[1]}: No parameters given for definition.")
+        # But one was juuust right
+
+    # Memorize or resolve
+    while(len(tasks) != 0):
+        progress = False
+        idx = 0
+        while(idx < len(tasks)):
+            definition = tasks[idx]
+
+            # Check if resolved
+            if((len(definition[0]) == 3) and (type(definition[0][2][0]) == int)):
+                progress = True
+                definitions[definition[0][1][0]] = definition[0][2][0]
+                if(verbose_level >= 2):
+                    print(f"%0*d: \'%s\' = %d"%(line_address_size, definition[1], definition[0][1][0], definition[0][2][0]))
+                tasks.pop(idx)
+                continue
+            # Otherwise, try to resolve operands
+            else:
+                fully_resolved = True
+
+                line_before_change = deep_copy(definition)
+                changed = False
+                for idx2 in range(2, len(definition[0])):
+                    if(is_definition(definition[0][idx2], definitions)):
+                        progress = True
+                        changed = True
+                        definition[0][idx2][0] = definitions[definition[0][idx2][0]]
+                    if(type(definition[0][idx2][0]) != int):
+                        fully_resolved = False
+
+                if(changed and (verbose_level >= 2)):
+                    print('%0*d: %s -> %s ; resolution'%(line_address_size, definition[1], recompose_line(line_before_change), recompose_line(definition)))
+                if(fully_resolved):
+                    line_before_change = deep_copy(definition)
+                    merge_offset_parameters(definition, True)
+                    if((definition != line_before_change) and (verbose_level >= 2)):
+                        print('%0*d: %s -> %s ; merge'%(line_address_size, definition[1], recompose_line(line_before_change), recompose_line(definition)))
+            idx += 1
+        if(not progress):
+            if(len(tasks) != 0):
+                if(verbose_level >= 2):
+                    print("definition resolver (pre-labels): Couldn\'t resolve everything, likely only labels left, leaving the rest for after labels.")
+            break
+        if(verbose_level >= 2):
+            print("  > Loop <")
+
+    # Resolve definitions
+    # DEBUG: show current job
+    if(verbose_level >= 1):
+        print("\nRESOLVING USER-DEFINED DEFINITIONS, PRE-LABELS..")
+    for index in range(len(decomposed)):
+        line = decomposed[index]
+        line_number = line[1]
+
+        line_before_change = deep_copy(line)
+        changed = False
+        all_resolved = True
+        for index2 in range(1, len(line[0])):
+            if(is_definition(line[0][index2], definitions)):
+                changed = True
+                line[0][index2][0] = definitions[line[0][index2][0]]
+            if(type(line[0][index2][0]) != int):
+                all_resolved = False
+        # DEBUG: show resolved line
+        if(verbose_level >= 2):
+            if(changed):
+                print("%0*d: %s -> %s ; resolution"%(line_address_size, line_number, recompose_line(line_before_change), recompose_line(line)))
+        if(all_resolved):
+            line_before_change = deep_copy(line)
+            merge_offset_parameters(line, True)
+            if((verbose_level >= 2) and (line_before_change != line)):
+                print("%0*d: %s -> %s ; merge"%(line_address_size, line_number, recompose_line(line_before_change), recompose_line(line)))
+
+    # DEBUG: display Assembly after resolving definitions
+    if(verbose_level >= 3):
+        print("\nASSEMBLY NOW:")
+        print_assembly(decomposed, {}, line_address_size)
+
     # Resolve pseudo-instructions
-    # DEBUG: show current action
+    # DEBUG: show current job
     if(verbose_level >= 1):
         print("\nRESOLVING PSEUDO-INSTRUCTIONS..")
     last_was = {}
@@ -557,28 +908,44 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
             line = decomposed[index]
             line_number=line[1]
             words=line[0]
+            res = is_pseudo(line)
 
-            if(is_pseudo(words[0])):
-                if(line_number not in last_was):
-                    last_was[line_number] = line
-                cont=True
-                popinfo=PSEUDO_INSTRUCTIONS[words[0]]
-                if(popinfo[0] != (len(words) - 1)):
-                    fatal_error('assembler', f"pre-assembly stage: {assembly_filename}:{line_number}: Incorrect number of operands for pseudo-instruction \'{words[0]}\'")
-                # !!! HACKY SUBSTITUTION FOR A REAL METHOD, REMOVE LATER !!!
-                if(words[0] == 'shl'):
-                    gen_lines = popinfo[1].format(*[words[1], words[2], 2 ** words[3]]).split('\n')
+            # label exists
+            if(res[0]):
+                label = words[0][0]
+                # a variant exists
+                if(res[1] != -1):
+                    merge_offset_parameters(line)
+                    variant_index = res[1]
+                    if(line_number not in last_was):
+                        last_was[line_number] = original_lines[line[1]][0]
+                    cont=True
+                    popinfo=PSEUDO_INSTRUCTIONS[label][variant_index]
+
+                    gen_lines = popinfo[1].format(*[x[0] for x in words[1:]]).split('\n')
+
+                    parsed = []
+                    for gline in gen_lines:
+                        new_lines, new_definitions = parse_line([gline, line_number], assembly_filename, 'pseudo-instruction resolver')
+
+                        for line in new_lines:
+                            line_number = line[1]
+                            params = line[0]
+                            for index2 in range(1, len(params)):
+                                param = params[index2]
+                                if(is_symbol(param, symbols)):
+                                    symbolinfo = symbols[param[0].lower()]
+                                    params[index2] = [symbolinfo[0], param[1] | symbolinfo[1]]
+
+                        parsed = parsed + new_lines
+
+                    # DEBUG: display resolved line
+                    if(verbose_level >= 2):
+                        print('%0*d: %s -> %s ; variation %d'%(line_address_size, line_number, recompose_line(line), '\\n'.join(recompose_line(gline) for gline in parsed), res[1]))
+                    decomposed = decomposed[:index] + parsed + decomposed[index + 1:]
+                # no variant found
                 else:
-                    gen_lines = popinfo[1].format(*words[1:]).split('\n')
-                parsed = []
-                for gline in gen_lines:
-                    new_lines, new_definitions = parse_line([gline, line_number], assembly_filename, 'parser')
-                    parsed = parsed + new_lines
-                    decomposed_definitions = decomposed_definitions + new_definitions
-                # DEBUG: display resolved line
-                if(verbose_level >= 2):
-                    print('%0*d: %s -> %s'%(line_address_size, line_number, recompose_line(line), '\\n'.join(recompose_line(gline) for gline in parsed)))
-                decomposed = decomposed[:index] + parsed + decomposed[index + 1:]
+                    fatal_error('assembler', f"pseudo-instruction resolver: {assembly_filename}:{line_number}: No pseudo-instruction variation for \'{label.upper()}\' matches\n  {display_types_line(line)}\nVariations:\n  {'\n  '.join(display_types_line([label] + [[y] for y in x[2]], True) for x in PSEUDO_INSTRUCTIONS[label])}")
             else:
                 index += 1
 
@@ -587,68 +954,42 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
         print("\nASSEMBLY NOW:")
         print_assembly(decomposed, last_was, line_address_size)
 
-    # DEBUG: display definitions after resolving pseudo-instructions
-    if(verbose_level >= 3):
-        print("\nDEFINITIONS NOW:")
-        print_assembly(decomposed_definitions, last_was, line_address_size)
-
-    # Memorize definitions
-    # DEBUG: show current action
+    # Find variants of instructions and find bad instructions
+    # DEBUG: show current job
     if(verbose_level >= 1):
-        print("\nMEMORIZING DEFINITIONS:")
-    for index in range(len(decomposed_definitions)):
-        line = decomposed_definitions[index]
-        line_number = line[1]
-        words = line[0]
-        if(len(words) == 1):
-            fatal_error('assembler', f"pre-assembly stage: {assembly_filename}:{line_number}: No parameters given for definition.")
-        elif(len(words) == 2):
-            fatal_error('assembler', f"pre-assembly stage: {assembly_filename}:{line_number}: Only name given for definition.")
-        elif(len(words) > 3):
-            fatal_error('assembler', f"pre-assembly stage: {assembly_filename}:{line_number}: Too many parameters given for definition.")
-        elif((words[1][0] in "0123456789") or (not words[1].isalnum())):
-            fatal_error('assembler', f"pre-assembly stage: {assembly_filename}:{line_number}: Invalid name for definition \'{words[1]}\'")
-        elif(type(words[2]) != int):
-            fatal_error('assembler', f"pre-assembly stage: {assembly_filename}:{line_number}: Definition resolution couldn\'t be resolved as an integer \'{words[2]}\'")
-        # 2000 error handling, 1 functional
-        definitions[words[1]] = words[2]
-        # DEBUG: display definition
-        if(verbose_level >= 2):
-            print(f"\'{words[1]}\' = {words[2]}")
+        print("\nRESOLVING INSTRUCTION TYPES..")
 
-    # DEBUG: display definitions table
-    if(verbose_level >= 3):
-        print(f"\nDEFINITIONS TABLE:\n{dump_dict(definitions)}", end='')
-
-    # Resolve definitions
-    # DEBUG: show current action
-    if(verbose_level >= 1):
-        print("\nRESOLVING DEFINITIONS (USER-DEFINED & ISA-DEFINED)..")
     for index in range(len(decomposed)):
-        line = deep_copy(decomposed[index])
+        line = decomposed[index]
         line_number = line[1]
-        params = line[0]
-        changed = False
-        for index2 in range(1, len(params)):
-            if(params[index2] in definitions):
-                changed = True
-                decomposed[index][0][index2] = definitions[params[index2]]
-            elif(params[index2] in symbols):
-                changed = True
-                decomposed[index][0][index2] = symbols[params[index2]]
-        # DEBUG: show resolved line
-        if(verbose_level >= 2):
-            if(changed):
-                print("%0*X: %s -> %s"%(line_address_size, line_number, recompose_line(line), recompose_line(decomposed[index])))
+        # Check if instruction type
+        if(line[0][0][1] == 0o50):
+            res = is_instruction(line)
+            # label exists
+            if(res[0]):
+                label = line[0][0][0]
+                # a variant exists
+                if(res[1] != -1):
+                    line[0][0].append(res[1])
+                    if(verbose_level >= 2):
+                        print("%*d: %s -> \'%s\' variation %d"%(line_address_size, line_number, recompose_line(line), label.upper(), res[1]))
+                # no variant found
+                else:
+                    fatal_error('assembler', f"instruction type resolver: {assembly_filename}:{line_number}: No native-instruction variation for \'{label.upper()}\' matches\n  {display_types_line(line)}\nVariations:\n  {'\n  '.join(display_types_line([label] + [[y[0][4], y[1] if(len(y) > 1) else None] for y in x[1][0]], True) for x in OPCODES[label])}")
+            # fuck
+            else:
+                fatal_error('assembler', f"instruction type resolver: {assembly_filename}:{line_number}: No native-instruction with the mnemonic \'{line[0][0][0].upper()}\' known.\n" + "%0*d:   %s ; %s"%(line_address_size, line[1], recompose_line(original_lines[line[1]][0]), display_types_line(line)))
+    # New format: [[['<label>', type, variant], ['<param>', type], ...], <line number>]
+    # (the variant is appended to the label)
 
-    # DEBUG: display Assembly after resolving definitions
+    # DEBUG: display Assembly after resolving native-instruction types
     if(verbose_level >= 3):
         print("\nASSEMBLY NOW:")
         print_assembly(decomposed, last_was, line_address_size)
 
     # Calculate positions of lines in the machine code file, using the user-defined instruction lengths
     # Resolves & removes ORG directives too
-    # DEBUG: show current action
+    # DEBUG: show current job
     if(verbose_level >= 1):
         print("\nCALCULATING POSITIONS IN MACHINE CODE..")
     position = 0 # Default is position 0
@@ -662,7 +1003,7 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
             print("%0*d: %s"%(line_address_size, line_number, recompose_line(line)))
 
         # Handle ORG directive
-        if(words[0] == 'org'):
+        if(words[0][1] == 0o30):
             # Error on ORG directive if in Matt mode
             if(matt_mode):
                 fatal_error('assembler', f"position resolver: {assembly_filename}:{line_number}: Encountered ORG directive, but they are disabled in Matt mode.")
@@ -670,7 +1011,9 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
                 fatal_error('assembler', f"position resolver: {assembly_filename}:{line_number}: No parameters given for ORG directive.")
             elif(len(words) > 2):
                 fatal_error('assembler', f"position resolver: {assembly_filename}:{line_number}: Too many parameters given for ORG directive.")
-            position = words[1]
+            if(type(words[1][0]) != int):
+                fatal_error('assembler', f"position resolver: {assembly_filename}:{line_number}: ORG parameter wasn\'t resolved. remember labels cannot be used here, and definitions that are based off of labels are resolved later down the line.")
+            position = words[1][0]
             # DEBUG: show position jump
             if(verbose_level >= 2):
                 print("%s: Encountered ORG directive, changing position to 0x%0*X"%(spacing, ROM_address_size, position))
@@ -688,13 +1031,13 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
             print("%s: is at 0x%0*X"%(spacing, ROM_address_size, position))
 
         # Handle known instruction
-        if(words[0] in OPCODES):
-            position += OPCODES[words[0]][3]
+        if(words[0][1] == 0o50):
+            position += OPCODES[words[0][0]][words[0][2]][3]
             # DEBUG: show how many words 'position' is incremented by
             if(verbose_level >= 2):
-                print("%s: \'%s\' is a known instruction, and is %d words.\n%s: Incrementing position by %d words."%(spacing, words[0], OPCODES[words[0]][3], spacing, OPCODES[words[0]][3]))
+                print("%s: This \'%s\' is a known instruction (variation %d), and is %d words.\n%s: Incrementing position by %d words."%(spacing, words[0][0].upper(), words[0][2], OPCODES[words[0][0]][words[0][2]][3], spacing, OPCODES[words[0][0]][words[0][2]][3]))
         # Handle DB directive
-        elif(words[0] == 'db'):
+        elif(words[0][1] == 0o40):
             # Error on DB directive if in Matt mode
             if(matt_mode):
                 fatal_error('assembler', f"position resolver: {assembly_filename}:{line_number}: Encountered DB directive, but they are disabled in Matt mode.")
@@ -711,7 +1054,7 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
         print_assembly_wordpos(decomposed, last_was, line_address_size, ROM_address_size)
 
     # Memorize labels
-    # DEBUG: show current action
+    # DEBUG: show current job
     if(verbose_level >= 1):
         print("\nMEMORIZING LABELS..")
     for index in range(len(decomposed)):
@@ -720,13 +1063,13 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
         line_number = line[1]
         line_word_pos = line[2]
 
-        result = is_label(words[0])
-        if(result != 0):
+        # if label
+        if(words[0][1] == 0o10):
             label = to_label(words[0], assembly_filename, line_number, 'label resolver')
-            labels[label] = line_word_pos
+            labels[label[0]] = line_word_pos
             # DEBUG: show what position label is at
             if(verbose_level >= 2):
-                print("\'%s\' (\'%s\') is at 0x%0*X"%(label, words[0], ROM_address_size, line_word_pos))
+                print("%0*d: \'%s\' (\'%s\') is at 0x%0*X"%(line_address_size, line[1], label[0], words[0][0], ROM_address_size, line_word_pos))
 
     # DEBUG: show label table
     if(verbose_level >= 3):
@@ -734,37 +1077,152 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
         print(dump_dict(labels))
 
     # Resolve labels
-    # DEBUG: show current action
+    # DEBUG: show current job
     if(verbose_level >= 1):
         print("\nRESOLVING LABELS..")
     for index in range(len(decomposed)):
-        line = deep_copy(decomposed[index])
+        line = decomposed[index]
         line_number = line[1]
         params = line[0]
+
+        line_before_change = deep_copy(line)
         changed = False
+        all_resolved = True
         for index2 in range(1, len(params)):
-            if(type(params[index2]) == int):
+            if(type(params[index2][0]) == int):
                 continue
-            if(is_label(params[index2]) == 1):
+            if(is_label(params[index2][0]) == 1):
                 changed = True
+                index = -1
+                if('[' in params[index2][0]):
+                    start = params[index2][0].find('[')
+                    end   = params[index2][0].find(']')
+                    if(end == -1):
+                        fatal_error('assembler', f"label resolver: {assembly_filename}:{line_number}: Unterminated label index.\n{params[index2][0]}\n{' '*start}^{'~'*(len(params[index2][0]) - start - 1)}")
+                    try:
+                        index = int(params[index2][0][start+1:end])
+                    except ValueError:
+                        fatal_error('assembler', f"label resolver: {assembly_filename}:{line_number}: Label index couldn\'t be resolved.\n{params[index2][0]}\n{' '*(start + 1)}^{'~'*(end - start - 2)}")
+                    params[index2][0] = params[index2][0][:start]
                 try:
-                    decomposed[index][0][index2] = labels[params[index2]]
+                    if(index != -1):
+                        params[index2][0] = (labels[params[index2][0]] >> (WORD_LENGTH * index)) & ((1 << WORD_LENGTH) - 1)
+                    else:
+                        params[index2][0] = labels[params[index2][0]]
                 except KeyError as _ERR:
-                    fatal_error('assembler', f"label resolver: {assembly_filename}:{line_number}: Couldn\'t resolve label.\nLabel table dump:\n{dump_dict(labels)}")
+                    fatal_error('assembler', f"label resolver: {assembly_filename}:{line_number}: Couldn\'t resolve label \'{params[index2][0]}\'\nLabel table dump:\n{dump_dict(labels)}")
+            if(type(params[index2][0]) != int):
+                all_resolved = False
         # DEBUG: show resolved line
         if(verbose_level >= 2):
             if(changed):
-                print("%0*d:%0*X: %s -> %s"%(line_address_size, line_number, ROM_address_size, line[2], recompose_line(line), recompose_line(decomposed[index])))
+                print("%0*d:%0*X: %s -> %s ; resolution"%(line_address_size, line_number, ROM_address_size, line[2], recompose_line(line_before_change), recompose_line(line)))
+        if(all_resolved):
+            line_before_change = deep_copy(line)
+            merge_offset_parameters(line, True)
+            if((verbose_level >= 2) and (line != line_before_change)):
+                print("%0*d:%0*X: %s -> %s ; merge"%(line_address_size, line_number, ROM_address_size, line[2], recompose_line(line_before_change), recompose_line(line)))
 
     # DEBUG: display Assembly after resolving labels
     if(verbose_level >= 3):
         print("\nASSEMBLY NOW:")
         print_assembly_wordpos(decomposed, last_was, line_address_size, ROM_address_size)
 
+    # Memorize definitions (and resolve their parameters if needed)
+    # DEBUG: show current job
+    do_job = len(tasks) != 0
+    if((verbose_level >= 1) and (tasks != 0)):
+        print("\nMEMORIZING USER-DEFINED DEFINITIONS, POST-LABELS..")
+        if(not do_job):
+            print("Nothing left, skipping.")
+
+    # Memorize or resolve
+    while(len(tasks) != 0):
+        progress = False
+        idx = 0
+        while(idx < len(tasks)):
+            definition = tasks[idx]
+
+            # Check if resolved
+            if((len(definition[0]) == 3) and (type(definition[0][2][0]) == int)):
+                progress = True
+                definitions[definition[0][1][0]] = definition[0][2][0]
+                if(verbose_level >= 2):
+                    print(f"%0*d: \'%s\' = %d"%(line_address_size, definition[1], definition[0][1][0], definition[0][2][0]))
+                tasks.pop(idx)
+                continue
+            # Otherwise, try to resolve operands
+            else:
+                fully_resolved = True
+
+                line_before_change = deep_copy(definition)
+                changed = False
+                for idx2 in range(2, len(definition[0])):
+                    if(type(definition[0][idx2][0]) == int):
+                        continue
+                    if(is_definition(definition[0][idx2], definitions)):
+                        progress = True
+                        changed = True
+                        definition[0][idx2][0] = definitions[definition[0][idx2][0]]
+                    if(is_label(definition[0][idx2][0]) == 1):
+                        progress = True
+                        changed = True
+                        definition[0][idx2][0] = labels[definition[0][idx2][0]]
+                    if(type(definition[0][idx2][0]) != int):
+                        fully_resolved = False
+                if(changed and (verbose_level >= 2)):
+                    print('%0*d: %s -> %s ; resolution'%(line_address_size, definition[1], recompose_line(line_before_change), recompose_line(definition)))
+                if(fully_resolved):
+                    line_before_change = deep_copy(definition)
+                    merge_offset_parameters(definition, True)
+                    if((definition != line_before_change) and (verbose_level >= 2)):
+                        print('%0*d: %s -> %s ; merge'%(line_address_size, definition[1], recompose_line(line_before_change), recompose_line(definition)))
+            idx += 1
+        if(not progress):
+            if(len(tasks) != 0):
+                fatal_error('assembler', f"definition resolver (post-labels): Couldn\'t resolve everything in definitions.")
+            break
+        if(verbose_level >= 2):
+            print("  > Loop <")
+
+    # Resolve definitions
+    # DEBUG: show current job
+    if(verbose_level >= 1):
+        print("\nRESOLVING USER-DEFINED DEFINITIONS, POST-LABELS..")
+
+    for index in range(len(decomposed)):
+        line = decomposed[index]
+        line_number = line[1]
+
+        line_before_change = deep_copy(line)
+        changed = False
+        for index2 in range(1, len(line[0])):
+            if(is_definition(line[0][index2], definitions)):
+                changed = True
+                line[0][index2][0] = definitions[line[0][index2][0]]
+            if(type(line[0][index2][0]) != int):
+                fatal_error('assembler', f"definition resolver (post-labels, final): {assembly_filename}:{line_number}: Couldn\'t resolve \'{line[0][index2][0]}\'")
+        # DEBUG: show resolved line
+        if(verbose_level >= 2):
+            if(changed):
+                print("%0*d: %s -> %s ; resolution"%(line_address_size, line_number, recompose_line(line_before_change), recompose_line(line)))
+        line_before_change = deep_copy(line)
+        merge_offset_parameters(line, True)
+        if((verbose_level >= 2) and (line_before_change != line)):
+            print("%0*d: %s -> %s ; merge"%(line_address_size, line_number, recompose_line(line_before_change), recompose_line(line)))
+
+    # DEBUG: display Assembly after resolving definitions
+    if(verbose_level >= 3):
+        print("\nASSEMBLY NOW:")
+        if(do_job):
+            print_assembly_wordpos(decomposed, last_was, line_address_size, ROM_address_size)
+        else:
+            print("<job skipped>")
+
     # Lines should be clean by now
 
-    # Start assembling
-    # DEBUG: show current action
+    # Assembly stage
+    # DEBUG: show current job
     if(verbose_level >= 1):
         print("\nSTARTING ASSEMBLY..")
     output_machine_code = []
@@ -776,64 +1234,85 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
         line_number=line[1]
 
         machine_code = 0
-        current_instruction = words[0]
+        current_instruction = words[0][0]
+        current_type = words[0][1]
         words = words[1:]
         
         # Begin machine code translation
         # handle DB directive
-        if(current_instruction == 'db'):
-            output_machine_code.append([sum(words[len(words) - index - 1] << (index * WORD_LENGTH) for index in range(len(words))), line_number, line[2], len(words), original_lines[line_number][0]])
-        # skip ORG directives
-        elif(current_instruction == 'org'):
-            continue
-        # skip labels
-        elif(is_label(current_instruction) != 0):
-            continue
-        # handle known instructions
-        elif(current_instruction in OPCODES):
+        if(current_type == 0o40):
+            if(verbose_level >= 2):
+                print("%0*d:%0*X: %s"%(line_address_size, line_number, ROM_address_size, line[2], recompose_line(line)), end='')
+                offset_display_size = max(int(log2(len(words)) + 3) >> 2, ROM_address_size - 1)
+                head = 0
+                while(head < len(words)):
+                    if((head % 16) == 0):
+                        print("\n%s:+%0*X: "%(' '*line_address_size, offset_display_size, head), end='')
+                    print("%0*X "%(word_display_size, words[head][0]), end='')
+                    head += 1
+                    if(((head % 8) == 0) or (head >= len(words))):
+                        print(' ', end='')
+                    if(((head % 16) == 0) or (head >= len(words))):
+                       print("%s|%-16s|"%(' '*((word_display_size + 1) * (15 - ((head - 1) % 16))), ''.join((chr(words[idx][0]) if(chr(words[idx][0]).isprintable()) else '.') for idx in range(head - ((head - 1) % 16) - 1, head))), end='')
+                print()
+
+            output_machine_code.append([sum(words[len(words) - index - 1][0] << (index * WORD_LENGTH) for index in range(len(words))), line_number, line[2], len(words), original_lines[line_number][0]])
+        # handle instructions
+        elif(current_type == 0o50):
+            variant = line[0][0][2]
             # Resolve mnemonic
             try:
-                current_opinfo = OPCODES[current_instruction]
+                current_opinfo = OPCODES[current_instruction][variant]
             except KeyError as _ERR:
                 fatal_error('assembler', f"assembly stage: {assembly_filename}:{line_number}: Unknown instruction mnemonic \'{current_instruction}\'\n{_ERR}")
             current_size = current_opinfo[3]
+
+            if(verbose_level >= 2):
+                if(line_number != last_line):
+                    print("%0*d:%0*X: %s"%(line_address_size, line_number, ROM_address_size, line[2], recompose_line(line)))
+                else:
+                    print("%s:%0*X: %s"%(' '*line_address_size, ROM_address_size, line[2], recompose_line(line)))
 
             # Assemble opcode
             machine_code |= current_opinfo[0] << (OPCODE_POSITION + ((current_opinfo[3] - 1) * WORD_LENGTH))
 
             # Number of operands check
-            if(  current_opinfo[1][-2] > len(words)):
-                fatal_error('assembler', f"assembly stage: {assembly_filename}:{line_number}: Not enough operands for instruction \'{current_instruction}\'")
-            elif(current_opinfo[1][-1] < len(words)):
-                fatal_error('assembler', f"assembly stage: {assembly_filename}:{line_number}: Too many operands for instruction \'{current_instruction}\'")
+            # Should be good without it?
+#            if(  current_opinfo[1][-2] > len(words)):
+#                fatal_error('assembler', f"assembly stage: {assembly_filename}:{line_number}: Not enough operands for instruction \'{current_instruction}\' variation {variant}")
+#            elif(current_opinfo[1][-1] < len(words)):
+#                fatal_error('assembler', f"assembly stage: {assembly_filename}:{line_number}: Too many operands for instruction \'{current_instruction}\' variation {variant}")
 
             # Check operands and assemble them
             for idx, opcode in enumerate(current_opinfo[1][0]):
                 if(len(words) <= idx):
-                    words.append(opcode[1])
-                opinfo = OPERANDS[opcode[0]]
+                    words.append([opcode[1], opcode[0][4]])
+                opinfo = opcode[0]
                 mask   = (1 << opinfo[2]) - 1
                 sign   = 1
-                if(words[idx] < 0):
+                if(words[idx][0] < 0):
                     sign = -1
                 if((not opinfo[3]) and (sign < 0)):
-                    fatal_error('assembler', f"assembly stage: {assembly_filename}:{line_number}: {opinfo[4]} for instruction \'{current_instruction}\' is signed, but the operand doesn\'t support that.")
-                unsignedver = words[idx] * sign
+                    fatal_error('assembler', f"assembly stage: {assembly_filename}:{line_number}: {opinfo[5]} for instruction \'{current_instruction}\' variant {variant} is signed, but the operand doesn\'t support that.")
+                unsignedver = words[idx][0] * sign
                 if(unsignedver != (unsignedver & mask)):
-                    fatal_error('assembler', f"assembly stage: {assembly_filename}:{line_number}: {opinfo[4]} for instruction \'{current_instruction}\' doesn\'t fit, it\'s too big. (bit width: {opinfo[2]})")
+                    fatal_error('assembler', f"assembly stage: {assembly_filename}:{line_number}: {opinfo[5]} for instruction \'{current_instruction}\' variant {variant} doesn\'t fit, it\'s too big. (bit width: {opinfo[2]})")
 
-                machine_code |= (words[idx] & mask) << (opinfo[0] + ((current_opinfo[3] - opinfo[1] - 1) * WORD_LENGTH))
+                machine_code |= (words[idx][0] & mask) << (opinfo[0] + ((current_opinfo[3] - opinfo[1] - 1) * WORD_LENGTH))
                 # Just to be safe, it's ANDed with the mask
 
             # OR with opcode-specific mask
             machine_code |= current_opinfo[2]
 
             # Length check
-            if((int(log2(machine_code)) + 1) > (current_opinfo[3] * WORD_LENGTH)):
+            if((int(log2(machine_code if(machine_code != 0) else 1)) + 1) > (current_opinfo[3] * WORD_LENGTH)):
                 fatal_error('assembler', f"assembly stage: {assembly_filename}:{line_number}: Uh-oh! the instruction at this line ended up bigger than expected, this should be investigated.. You should open an issue about this!\n" +
                 "Relevant info:\n" +
                 "  Version format: {1}\n  Version.......: {0}\n".format(*render_version(VERSION, VER_FMT)) +
-                f"  {assembly_filename}:{line_number}: {lines[i][0]}\n")
+                f"  {assembly_filename}:{line_number}: {lines[i][0]}\n" +
+                "%*0d:%*0X: %s \n"%(line_address_size, line_number, ROM_address_size, line[2], recompose_line(line)) +
+                f"{words}\n" +
+                f"{current_opinfo}\n")
 
             # Output
             # Format is: [<INSTRUCTION>, <LINE IN ASSEMBLY FILE>, <POSITION IN WORDS>, <SIZE IN WORDS>, [<ORIGINAL OPERANDS>]]
@@ -841,9 +1320,9 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
                 output_machine_code.append([machine_code, line_number, line[2], current_size, original_lines[line_number][0]])
             else:
                 output_machine_code.append([machine_code, line_number, line[2], current_size])
+            if(verbose_level >= 2):
+                print("%*s: %s"%(line_address_size + ROM_address_size + 1, '+', " ".join("%0*X"%(word_display_size, x) for x in word_dissect(machine_code, current_size, WORD_LENGTH))))
             last_line = line_number
-        else:
-            fatal_error('assembler', f"assembly stage: {assembly_filename}:{line_number}: \'{current_instruction.upper()}\' is not a valid instruction.")
 
     if(verbose_level >= 1):
         print("\nSORTING OUTPUT BY POSITION IN MACHINE CODE..")
@@ -862,6 +1341,7 @@ def assemble(assembly_filename: str, ROM_size: int, verbose_level: int, debug_fl
         print(f'Label table dump:\n{dump_dict(labels)}')
     if(debug_flags & 2):
         print(f'Definition table dump:\n{dump_dict(definitions)}')
+
     return output_machine_code
 
 # Formats output of the assembler
