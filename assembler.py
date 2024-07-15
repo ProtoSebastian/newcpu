@@ -12,7 +12,7 @@ OPCODE_POSITION = 4
 # Word length in bits
 WORD_LENGTH = 8
 # Max length an instruction can have (in words)
-INSTRUCTION_MAX_LENGTH = 3
+INSTRUCTION_MAX_LENGTH = 4
 
 ###- ALL POSSIBLE OPERANDS -###
 # Operands
@@ -28,17 +28,7 @@ INSTRUCTION_MAX_LENGTH = 3
 ## For the first word in every line, bits 0-2 all have to be 0, and bits 3-5 represent the type of the line (Label, Definition, ORG, DB, Instruction)
 ## The rest are up to you
 OPERANDS= {
-           'a':[0, 2, 16, 0, 0b0110101, "Full address immediate"],
-           'I':[0, 2, 8,  1, 0b0000001, "Immediate"],
-           'P':[0, 1, 4,  0, 0b0010110, "Page register"],
-           'O':[0, 2, 4,  0, 0b0100110, "Offset register"],
-           'o':[0, 2, 8,  0, 0b0100101, "Offset immediate"],
-           'D':[4, 1, 4,  0, 0b0000010, "Destination register"],
-           'S':[4, 1, 4,  0, 0b0000010, "Source register"],
-           'L':[0, 0, 4,  0, 0b0000001, "ALU instruction"],
-           'A':[0, 1, 4,  0, 0b0000010, "Register A"],
-           'B':[0, 2, 4,  0, 0b0000010, "Register B"],
-           'F':[0, 0, 4,  0, 0b0000001, "Flag type"],
+#           'a':[0, 2, 16, 0, 0b0110101, "Full address immediate"],
           }
 
 ###- NATIVE INSTRUCTIONS -###
@@ -46,25 +36,7 @@ OPERANDS= {
 # [A=0] means operand A is optional and defaults to 0
 # - parameter type requirements are derived from operand flag type flags
 OPCODES = {
-           'nop' :[[0x0, '',     0x000000, 3],],
-           'brk' :[[0x1, '',     0x000000, 3],],
-           'alu' :[[0x2, 'LDAB', 0x000000, 3],],
-           'alui':[[0x3, 'LDAI', 0x000000, 3],],
-           'ldi' :[[0x4, 'DI',   0x000000, 3],],
-           'lod' :[[0x5, 'DPo',  0x000000, 3],
-                   [0x5, 'DPO',  0x080000, 3],],
-           'str' :[[0x6, 'SPo',  0x000000, 3],
-                   [0x6, 'SPO',  0x080000, 3],],
-           'psh' :[[0x7, 'S',    0x000000, 3],],
-           'pop' :[[0x8, 'D',    0x000000, 3],],
-           'jmp' :[[0x9, 'a',    0x000000, 3],],
-           'jf'  :[[0xA, 'Fa',   0x000000, 3],],
-           'rjm' :[[0xB, 'PO',   0x000000, 3],],
-           'call':[[0xC, 'a',    0x000000, 3],],
-           'ret' :[[0xD, '',     0x000000, 3],],
-           'wait':[[0xE, '',     0x000000, 3],],
-           'sta' :[[0xF, 'a',    0x000000, 3],],
-           'lda' :[[0xF, 'a',    0x080000, 3],],
+#           'nop' :[[0x0, '',     0x000000, 3],],
           } # Opcodes
 
 ###- PSEUDO-INSTRUCTIONS -###
@@ -73,68 +45,19 @@ OPCODES = {
 # - instructions must be separated by newlines ('\n')
 # - parameter type requirements are derived from operand flag type flags
 PSEUDO_INSTRUCTIONS = {
-           'mov'  :[['alu 0, %{0}, %R0, %{1}', 'DA'],   # MOV DEST, A -> ALU ADD, DEST, %R0, A ; DEST = A
-                    ['alui 0, %{0}, %R0, {1}', 'DI'],], # MOVI DEST, A -> ALUI ADD, DEST, %R0, IMM ; DEST = IMM
-           'inc'  :[['alui 0, %{0}, %{0}, 1', 'A'],], # INC A -> ALUI ADD, A, A, 1 ; A + 1
-           'dec'  :[['alui 2, %{0}, %{0}, 1', 'A'],], # DEC A -> ALUI SUB, A, A, 1 ; A - 1
-           'cmp'  :[['alu 2, %R0, %{0}, %{1}', 'AB'],    # CMP A, B -> ALU SUB, %R0, A, B ; A - B (set flags)
-                    ['alui 2, %R0, %{0}, {1}', 'AI'],],  # CMPI A, B -> ALUI SUB, %R0, A, IMM ; A - IMM (set flags)
-           'shl'  :[['alui 4, %{0}, %{1}, 2', 'DA'],],     # SHL DEST, A -> ALUI MULT, DEST, A, 2 ; DEST = A << 1
-           'add'  :[['alu 0, %{0}, %{1}, %{2}', 'DAB'],    # ADD DEST, A, B -> ALU ADD, DEST, A, B ; DEST = A + B
-                    ['alui 0, %{0}, %{1}, {2}', 'DAI'],],  # ADDI DEST, A, IMM -> ALUI ADD, DEST, A, IMM ; DEST = A + IMM
-           'addc' :[['alu 1, %{0}, %{1}, %{2}', 'DAB'],    # ADDC DEST, A, B -> ALU ADDC, DEST, A, B ; DEST = A + B (w/carry)
-                    ['alui 1, %{0}, %{1}, {2}', 'DAI'],],  # ADDCI DEST, A, IMM -> ALUI ADDC, DEST, A, IMM ; DEST = A + IMM (w/carry)
-           'sub'  :[['alu 2, %{0}, %{1}, %{2}', 'DAB'],    # SUB DEST, A, B -> ALU SUB, DEST, A, B ; DEST = A - B
-                    ['alui 2, %{0}, %{1}, {2}', 'DAI'],],  # SUBI DEST, A, IMM -> ALUI SUB, DEST, A, IMM ; DEST = A - IMM
-           'subb' :[['alu 3, %{0}, %{1}, %{2}', 'DAB'],    # SUBB DEST, A, B -> ALU SUBB, DEST, A, B ; DEST = A - B (w/borrow)
-                    ['alui 3, %{0}, %{1}, {2}', 'DAI'],],  # SUBBI DEST, A, IMM -> ALUI SUBB, DEST, A, IMM ; DEST = A - IMM (w/borrow)
-           'mult' :[['alu 4, %{0}, %{1}, %{2}', 'DAB'],    # MULT DEST, A, B -> ALU MULT, DEST, A, B ; DEST = A * B
-                    ['alui 4, %{0}, %{1}, {2}', 'DAI'],],  # MULTI DEST, A, IMM -> ALUI MULT, DEST, A, IMM ; DEST = A * IMM
-           'and'  :[['alu 5, %{0}, %{1}, %{2}', 'DAB'],    # AND DEST, A, B -> ALU AND, DEST, A, B ; DEST = A & B
-                    ['alui 5, %{0}, %{1}, {2}', 'DAI'],],  # ANDI DEST, A, IMM -> ALUI AND, DEST, A, IMM ; DEST = A & IMM
-           'or'   :[['alu 6, %{0}, %{1}, %{2}', 'DAB'],    # OR DEST, A, B -> ALU OR, DEST, A, B ; DEST = A | B
-                    ['alui 6, %{0}, %{1}, {2}', 'DAI'],],  # ORI DEST, A, IMM -> ALUI OR, DEST, A, IMM ; DEST = A | IMM
-           'xor'  :[['alu 7, %{0}, %{1}, %{2}', 'DAB'],    # XOR DEST, A, B -> ALU XOR, DEST, A, B ; DEST = A ^ B
-                    ['alui 7, %{0}, %{1}, {2}', 'DAI'],],  # XORI DEST, A, IMM -> ALUI XOR, DEST, A, IMM ; DEST = A ^ IMM
-           'nand' :[['alu 8, %{0}, %{1}, %{2}', 'DAB'],    # NAND DEST, A, B -> ALU NAND, DEST, A, B ; DEST = !(A & B)
-                    ['alui 8, %{0}, %{1}, {2}', 'DAI'],],  # NANDI DEST, A, IMM -> ALUI NAND, DEST, A, IMM ; DEST = !(A & IMM)
-           'nor'  :[['alu 9, %{0}, %{1}, %{2}', 'DAB'],    # NOR DEST, A, B -> ALU NOR, DEST, A, B ; DEST = !(A | B)
-                    ['alui 9, %{0}, %{1}, {2}', 'DAI'],],  # NORI DEST, A, IMM -> ALUI NOR, DEST, A, IMM ; DEST = !(A | IMM)
-           'xnor' :[['alu 10, %{0}, %{1}, %{2}', 'DAB'],   # XNOR DEST, A, B -> ALU XNOR, DEST, A, B ; DEST = !(A ^ B)
-                    ['alui 10, %{0}, %{1}, {2}', 'DAI'],], # XNORI DEST, A, IMM -> ALUI XNOR, DEST, A, IMM ; DEST = !(A ^ IMM)
-           'shr'  :[['alu 11, %{0}, %{1}, %R0', 'DA'],], # SHR DEST, A -> ALU SHR, DEST, A, %R0 ; DEST = A >> 1
-           'asr'  :[['alu 12, %{0}, %{1}, %R0', 'DA'],], # ASR DEST, A -> ALU ASR, DEST, A, %R0 ; DEST = A ~>> 1
-           'rol'  :[['alu 13, %{0}, %{1}, %R0', 'DA'],], # ROL DEST, A -> ALU ROL, DEST, A, %R0 ; DEST = A ROL 1
-           'ror'  :[['alu 14, %{0}, %{1}, %R0', 'DA'],], # ROR DEST, A -> ALU ROR, DEST, A, %R0 ; DEST = A ROR 1
-           'shrc' :[['alu 15, %{0}, %{1}, %R0', 'DA'],], # SHRC DEST, A -> ALU SHRC, DEST, A, %R0 ; DEST = (A >> 1) | (Carry << 15)
-           'neg'  :[['mult %{0}, %{1}, -1', 'DA'],],    # NEG DEST, A -> MULTI DEST, A, -1 ; DEST = -A, (A * -1)
-           'not'  :[['alu 9, %{0}, %{1}, %R0', 'DA'],],  # NOT DEST, A -> ALU NOR, DEST, A, %R0 ; DEST = !A
-           'jz'   :[['jf 0, [{0}]', 'a'],],   # jump if zero
-           'jc'   :[['jf 1, [{0}]', 'a'],],   # jump if carry
-           'jo'   :[['jf 2, [{0}]', 'a'],],   # jump if overflow
-           'js'   :[['jf 3, [{0}]', 'a'],],   # jump if sign
-           'jgt'  :[['jf 4, [{0}]', 'a'],],   # jump if greater than
-           'jlt'  :[['jf 5, [{0}]', 'a'],],   # jump if lesser than
-           'jb'   :[['jf 6, [{0}]', 'a'],],   # jump if BCD mode
-           'jirqe':[['jf 7, [{0}]', 'a'],],   # jump if IRQE
-           'jnz'  :[['jf 8, [{0}]', 'a'],],   # jump if not zero
-           'jnc'  :[['jf 9, [{0}]', 'a'],],   # jump if not carry
-           'jno'  :[['jf 10, [{0}]', 'a'],],  # jump if not overflow
-           'jns'  :[['jf 11, [{0}]', 'a'],],  # jump if not sign
-           'jngt' :[['jf 12, [{0}]', 'a'],],  # jump if not greater than
-           'jnlt' :[['jf 13, [{0}]', 'a'],],  # jump if not lesser than
-           'jnb'  :[['jf 14, [{0}]', 'a'],],  # jump if not BCD mode
-           'jnirqe':[['jf 15, [{0}]', 'a'],], # jump if not IRQE
+#           'mov'  :[['alu 0, %{0}, %R0, %{1}', 'DA'],   # MOV DEST, A -> ALU ADD, DEST, %R0, A ; DEST = A
+#                    ['alui 0, %{0}, %R0, {1}', 'DI'],], # MOVI DEST, A -> ALUI ADD, DEST, %R0, IMM ; DEST = IMM
          }
 ###- STARTING SYMBOLS -###
 # Dictionary that the assembler starts with
 # [<resolution value>, <custom type flags>]
 # - in most situations custom type flags aren't needed, unless you need custom behavior with the type system.
 STARTING_SYMBOLS = {
-                    'r0' :[0,  0,], 'r1' :[1,  0,], 'r2' :[2,  0,], 'r3' :[3,  0,], # Registers
-                    'r4' :[4,  0,], 'r5' :[5,  0,], 'r6' :[6,  0,], 'r7' :[7,  0,],
-                    'r8' :[8,  0,], 'r9' :[9,  0,], 'ra' :[10, 0,], 'sr' :[11, 0,],
-                    'spx':[12, 0,], 'spy':[13, 0,], 'csx':[14, 0,], 'csy':[15, 0,],
+                    'zx' :[0,  0,], 'ax' :[1,  0,], 'bx' :[2,  0x80,], 'cx' :[3,  0,], # Registers
+                    'dx' :[4,  0,], 'ex' :[5,  0,], 'fx' :[6,  0,   ], 'sx' :[7,  0,],
+                    'sy' :[8,  0,], 'al' :[9,  0,], 'bl' :[10, 0,   ], 'cl' :[11, 0,],
+                    'dl' :[12, 0,], 'el' :[13, 0,], 'fl' :[14, 0,   ], 'sl' :[15, 0,],
+                    'reset_vector':[0xFFFF4, 0,], 'interrupt_vector':[0xFFFF8, 0,], 'nmi_vector':[0xFFFFC, 0,], # vectors
                    }
 
 ###- UTILITY -###
@@ -292,7 +215,7 @@ def display_type(word: list, a_or_an: bool = False):
         sentence = "no type/"*((word[1] >> 6) & 1) + " ".join(["immediate"]*(word[1] & 1) + ["register"]*((word[1] >> 1) & 1) + ["memory location"]*((word[1] >> 2) & 1) + [" + special behavior"]*((word[1] & (~0x7F)) != 0))
     elif(word[1] & (~0b111)):
         t = (word[1] >> 3) & 0b111
-        sentence = ["label", "definition", "ORG directive", "DB directive", "instruction"][t]
+        sentence = ["no type", "label", "definition", "ORG directive", "DB directive", "instruction"][t]
     else:
         sentence = "no type"
     if(a_or_an):
@@ -319,16 +242,16 @@ def display_word(word: list, optional_substitute: int = None):
         if(word[1] & 0o100):
             # * = any
             disp_word = '*' + disp_word
-        if(word[1] & (~0x7F)):
-            # + after = special behavior
-            disp_word = disp_word + '+'
         if(word[1] & 0b100):
             if(word[1] & 0b010000):
                 disp_word = '[' + disp_word
             if(word[1] & 0b100000):
                 disp_word = disp_word + ']'
-    elif(word[1] != 0):
+    elif((word[1] & 0x38) != 0):
         return disp_word.upper()
+    if(word[1] & (~0x7F)):
+        # + after = special behavior
+        disp_word = disp_word + '+'
     return disp_word
 # Resolve integers, ignores everything else
 def resolve_integer(word: list, filename: str, line: int, caller: str):
