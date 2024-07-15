@@ -214,10 +214,12 @@ def is_pseudo(line: list):
             # Operand type check
             offset = 0
             for idx in range(len(merged_param_types)):
+                type_flags = variation[2][idx - offset]
                 # override check
-                if((merged_param_types[idx] & 1) and (variation[2][idx - offset] & 0o100)):
+                if((merged_param_types[idx] & 1) and (type_flags & 0o100)):
                     continue
-                if((merged_param_types[idx] & variation[2][idx - offset]) != variation[2][idx - offset]):
+                type_flags &= (~0o100)
+                if((merged_param_types[idx] & type_flags) != type_flags):
                     break
             else:
                 variant = variant_index
@@ -251,6 +253,7 @@ def is_instruction(line: list):
                 # override check
                 if((merged_param_types[idx2] & 1) and (type_flags & 0o100)):
                     continue
+                type_flags &= (~0o100)
                 if((merged_param_types[idx2] & type_flags) != type_flags):
                     break
             else:
@@ -286,7 +289,7 @@ def convert_label(word: list):
 # Helper function for displaying the type of a word
 def display_type(word: list, a_or_an: bool = False):
     if(word[1] & 0b111):
-        sentence = " ".join(["no type/"]*((word[1] >> 6) & 1) + ["immediate"]*(word[1] & 1) + ["register"]*((word[1] >> 1) & 1) + ["memory location"]*((word[1] >> 2) & 1) + [" + special behavior"]*((word[1] & (~0x7F)) != 0))
+        sentence = "no type/"*((word[1] >> 6) & 1) + " ".join(["immediate"]*(word[1] & 1) + ["register"]*((word[1] >> 1) & 1) + ["memory location"]*((word[1] >> 2) & 1) + [" + special behavior"]*((word[1] & (~0x7F)) != 0))
     elif(word[1] & (~0b111)):
         t = (word[1] >> 3) & 0b111
         sentence = ["label", "definition", "ORG directive", "DB directive", "instruction"][t]
