@@ -76,7 +76,7 @@ Example:
 
 ### `-M --matt-mode`
 
-  Enables Matt mode, which disables ORG directives, DB directives, and multi-line pseudo-instructions, because Matt's assembler doesn't support them.
+  Enables Matt mode, which disables DB & ORG directives, and multi-line pseudo-instructions, to remove jumps in address and make every line translate to exactly 1 machine code line.
 
 ### `--dump-instructions`
 

@@ -18,8 +18,8 @@ Options:
                             Matt, Raw, Image, Hexdump, Logisim3, Logisim2, DEBUG.
                             (case-insensitive)
   -M --matt-mode            Enables Matt mode, which disables DB & ORG directives, and-
-                            multi-line pseudo-instructions, which Matt's assembler does-
-                            not support.
+                            multi-line pseudo-instructions, to remove jumps in address-
+                            and make every line translate to exactly 1 machine code line.
      --dump-instructions    Dump instructions, then exit. (native and pseudo)
      --dump-symbols         Dump symbols defined by the ISA, then exit.
      --dump-labels          Dump labels after assembly.
