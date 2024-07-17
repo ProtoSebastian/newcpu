@@ -1,11 +1,11 @@
 # Intro
 A fork of [@MattBatWings](https://github.com/MattBatWings)'s assembler that I kept adding features to while keeping it a superset of the original.
 
-Implements [@SLicudis](https://github.com/SLicudis)' ISA.
+Implements [@SLicudis](https://github.com/SLicudis)' SRM ISA.
 
-The project: https://github.com/SLicudis/KP8B
+The project: https://github.com/SLicudis/SRM
 
-Link to the ISA spreadsheet: https://docs.google.com/spreadsheets/d/1Fsal-7lGGJrTdmGC1KN0GybIsEcmk3nlsvMwRli7-7s/edit?usp=sharing
+Link to the ISA spreadsheet: https://docs.google.com/spreadsheets/d/1yLL9NnpTEgsyDEuP0pVivhbKop4ux6Byrx3yw5dqJ-k/edit?usp=sharing
 
 ![KP8B Logo](images/logo_KP8B.jpg)
 
