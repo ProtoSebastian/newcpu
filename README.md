@@ -1,7 +1,7 @@
 # Intro
 A fork of [@MattBatWings](https://github.com/MattBatWings)'s assembler that I kept adding features to while keeping it a superset of the original.
 
-Implements [@SLicudis](https://github.com/SLicudis)' ISA.
+Implements [@SLicudis](https://github.com/SLicudis)' KP8B ISA.
 
 The project: https://github.com/SLicudis/KP8B
 
